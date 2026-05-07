@@ -22,7 +22,7 @@ Personal investment dashboard to track Brazilian stocks, FIIs, US equities, and 
 docker compose up --build
 ```
 
-- Frontend → http://localhost:3000
+- Frontend → http://localhost:3002
 - Backend API → http://localhost:8000
 - API Docs → http://localhost:8000/docs
 
@@ -32,7 +32,6 @@ docker compose up --build
 ```bash
 cd backend
 pip install -r requirements.txt
-cp .env.example .env
 # start postgres + redis via docker, then:
 uvicorn app.main:app --reload
 ```
@@ -51,9 +50,25 @@ email: admin@invest.local
 password: invest123
 ```
 
-## Portfolio (pre-seeded)
+## Market Data
 
-The database seeds with a sample portfolio across Brazilian stocks (Ações BR), FIIs, US stocks, and crypto. Add your own holdings via the UI or update `backend/app/db/seed.py`.
+Prices are fetched via **yfinance** — free, no API key required. Covers:
+- Brazilian stocks (B3) — appends `.SA` suffix automatically
+- US equities
+- Crypto pairs (USD)
+
+To refresh live prices, call:
+```
+POST /api/v1/market/refresh
+```
+This updates all holdings in the database with current prices and recalculates returns.
+
+## Portfolio
+
+Pre-seeded with holdings across Brazilian stocks, FIIs, US equities, and crypto. To update holdings, edit `backend/app/db/seed.py` and recreate the database volume:
+```bash
+docker compose down -v && docker compose up --build
+```
 
 ## Project Structure
 
@@ -61,14 +76,14 @@ The database seeds with a sample portfolio across Brazilian stocks (Ações BR),
 Investment/
 ├── backend/           # FastAPI backend
 │   ├── app/
-│   │   ├── api/       # Route handlers
-│   │   ├── core/      # Config, security
-│   │   ├── db/        # Models, session, seed
-│   │   └── services/  # Market data, portfolio calc
+│   │   ├── api/       # Route handlers (auth, portfolio, market, watchlist, alerts, philosophy)
+│   │   ├── core/      # Config, security (JWT)
+│   │   ├── db/        # Models, session, seed data
+│   │   └── services/  # yfinance market data, portfolio calculations
 │   └── requirements.txt
 ├── frontend/          # Next.js frontend
-│   ├── app/           # Pages (App Router)
-│   ├── components/    # UI components
-│   └── lib/           # Types, formatters, API client
+│   ├── app/           # Pages (App Router) — Dashboard, Portfolio, Watchlist, Alerts, Philosophy
+│   ├── components/    # UI components (charts, layout, cards)
+│   └── lib/           # Types, formatters, API client (TanStack Query)
 └── docker-compose.yml
 ```

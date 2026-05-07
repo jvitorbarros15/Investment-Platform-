@@ -141,9 +141,9 @@ async def seed_database():
 
         # Seed some alert events
         alerts = [
-            AlertEvent(user_id=user.id, ticker="ISAE4", message="ISAE4 alcançou retorno de +41.44% — considere revisar posição.", is_read=False),
-            AlertEvent(user_id=user.id, ticker="RGTI", message="RGTI em queda de -49.07% — revisar tese de investimento.", is_read=False),
-            AlertEvent(user_id=user.id, ticker="KNCR11", message="KNCR11 com rentabilidade excepcional: +61.69%.", is_read=True),
+            AlertEvent(user_id=user.id, ticker="ISAE4", message="ISAE4 reached return of +41.44% — consider reviewing your position.", is_read=False),
+            AlertEvent(user_id=user.id, ticker="RGTI", message="RGTI down -49.07% — review your investment thesis.", is_read=False),
+            AlertEvent(user_id=user.id, ticker="KNCR11", message="KNCR11 with exceptional return of +61.69%. Strong position.", is_read=True),
         ]
         for alert in alerts:
             db.add(alert)

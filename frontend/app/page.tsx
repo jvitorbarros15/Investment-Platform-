@@ -1,32 +1,41 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { AllocationChart } from "@/components/dashboard/AllocationChart";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { PerformanceChart } from "@/components/charts/PerformanceChart";
 import { formatBRL, formatUSD, formatPct, getReturnColor, assetClassLabel } from "@/lib/formatters";
-import { MOCK_SUMMARY, MOCK_HOLDINGS, generatePortfolioHistory } from "@/lib/mock-data";
+import { generatePortfolioHistory } from "@/lib/mock-data";
+import { getPortfolioSummary, getHoldings } from "@/lib/api";
+import type { Holding } from "@/lib/types";
 
-const history = generatePortfolioHistory(MOCK_SUMMARY.total_value_brl);
+function withWeights(holdings: Holding[]): (Holding & { weight_in_class: number })[] {
+  const totals: Record<string, number> = {};
+  for (const h of holdings) totals[h.asset_class] = (totals[h.asset_class] || 0) + h.current_value;
+  return holdings.map((h) => ({ ...h, weight_in_class: totals[h.asset_class] > 0 ? (h.current_value / totals[h.asset_class]) * 100 : 0 }));
+}
 
 export default function Dashboard() {
-  const today = new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  const today = new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
-  const brStocks = MOCK_HOLDINGS.filter((h) => h.asset_class === "BR_STOCK");
-  const fiis = MOCK_HOLDINGS.filter((h) => h.asset_class === "FII");
-  const usStocks = MOCK_HOLDINGS.filter((h) => h.asset_class === "US_STOCK");
-  const crypto = MOCK_HOLDINGS.filter((h) => h.asset_class === "CRYPTO");
+  const { data: summary, isLoading: sl } = useQuery({ queryKey: ["portfolio-summary"], queryFn: getPortfolioSummary });
+  const { data: rawHoldings = [], isLoading: hl } = useQuery({ queryKey: ["holdings"], queryFn: getHoldings });
+
+  const holdings = withWeights(rawHoldings);
+  const isLoading = sl || hl;
+
+  const brStocks = holdings.filter((h) => h.asset_class === "BR_STOCK");
+  const fiis = holdings.filter((h) => h.asset_class === "FII");
+  const usStocks = holdings.filter((h) => h.asset_class === "US_STOCK");
+  const crypto = holdings.filter((h) => h.asset_class === "CRYPTO");
 
   const brTotal = brStocks.reduce((s, h) => s + h.current_value, 0);
   const fiiTotal = fiis.reduce((s, h) => s + h.current_value, 0);
   const usTotal = usStocks.reduce((s, h) => s + h.current_value, 0);
   const cryptoTotal = crypto.reduce((s, h) => s + h.current_value, 0);
 
-  const top5 = [...MOCK_HOLDINGS].sort((a, b) => b.current_value - a.current_value).slice(0, 6);
+  const top5 = [...holdings].sort((a, b) => b.current_value - a.current_value).slice(0, 6);
+  const history = generatePortfolioHistory(summary?.total_value_brl);
 
   return (
     <div className="space-y-8" style={{ animation: "fadeIn 0.5s ease-out" }}>
@@ -42,16 +51,16 @@ export default function Dashboard() {
 
       {/* KPI Row */}
       <div className="grid grid-cols-4 gap-4">
-        <KpiCard label="Total Portfolio" value={formatBRL(MOCK_SUMMARY.total_value_brl)} subtitle="Consolidated value" subtitleColor="#8892A4" />
-        <KpiCard label="Total Return" value={formatBRL(MOCK_SUMMARY.total_gain_brl)} subtitle={`${formatPct(MOCK_SUMMARY.total_return_pct)} on invested`} trend="up" />
-        <KpiCard label="Total Invested" value={formatBRL(MOCK_SUMMARY.total_invested_brl)} subtitle="Cost basis" subtitleColor="#8892A4" />
-        <KpiCard label="USD/BRL Exchange" value={`R$ ${MOCK_SUMMARY.usd_to_brl.toFixed(2)}`} subtitle="Reference" subtitleColor="#8892A4" />
+        <KpiCard label="Total Portfolio" value={isLoading ? "—" : formatBRL(summary?.total_value_brl ?? 0)} subtitle="Consolidated value" subtitleColor="#8892A4" />
+        <KpiCard label="Total Return" value={isLoading ? "—" : formatBRL(summary?.total_gain_brl ?? 0)} subtitle={isLoading ? "—" : `${formatPct(summary?.total_return_pct ?? 0)} on invested`} trend={!isLoading && (summary?.total_gain_brl ?? 0) >= 0 ? "up" : "down"} />
+        <KpiCard label="Total Invested" value={isLoading ? "—" : formatBRL(summary?.total_invested_brl ?? 0)} subtitle="Cost basis" subtitleColor="#8892A4" />
+        <KpiCard label="USD/BRL Exchange" value={isLoading ? "—" : `R$ ${(summary?.usd_to_brl ?? 0).toFixed(2)}`} subtitle="Reference" subtitleColor="#8892A4" />
       </div>
 
       {/* Charts Row */}
       <div className="grid grid-cols-5 gap-4">
         <div className="col-span-3"><PerformanceChart data={history} /></div>
-        <div className="col-span-2"><AllocationChart data={MOCK_SUMMARY.allocation} /></div>
+        <div className="col-span-2"><AllocationChart data={summary?.allocation ?? []} /></div>
       </div>
 
       {/* Market Segments */}
@@ -68,7 +77,7 @@ export default function Dashboard() {
               <span className="text-xs uppercase tracking-widest" style={{ color: seg.color, fontFamily: "Syne" }}>{seg.label}</span>
             </div>
             <p className="text-lg font-bold" style={{ color: "#F0F2F7", fontFamily: "JetBrains Mono" }}>
-              {seg.currency === "BRL" ? formatBRL(seg.total) : formatUSD(seg.total)}
+              {isLoading ? "—" : seg.currency === "BRL" ? formatBRL(seg.total) : formatUSD(seg.total)}
             </p>
             <p className="text-xs mt-1" style={{ color: "#4A5568", fontFamily: "JetBrains Mono" }}>{seg.count} assets</p>
           </div>
@@ -90,7 +99,9 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {top5.map((h, i) => (
+              {isLoading ? (
+                <tr><td colSpan={4} className="px-5 py-8 text-center text-xs" style={{ color: "#4A5568", fontFamily: "JetBrains Mono" }}>Loading...</td></tr>
+              ) : top5.map((h, i) => (
                 <tr key={h.ticker} style={{ borderBottom: i < top5.length - 1 ? "1px solid #161A23" : "none" }}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#161A23"; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
@@ -106,14 +117,16 @@ export default function Dashboard() {
 
         <div className="col-span-2 space-y-4">
           {[
-            { title: "▲ Top Gainers", color: "#10B981", items: MOCK_SUMMARY.top_gainers },
-            { title: "▼ Top Losers", color: "#F43F5E", items: MOCK_SUMMARY.top_losers },
+            { title: "▲ Top Gainers", color: "#10B981", items: summary?.top_gainers ?? [] },
+            { title: "▼ Top Losers", color: "#F43F5E", items: summary?.top_losers ?? [] },
           ].map((group) => (
             <div key={group.title} className="rounded-lg border overflow-hidden" style={{ background: "#111318", borderColor: "#1E2330" }}>
               <div className="px-4 py-3 border-b" style={{ borderColor: "#1E2330" }}>
                 <h3 className="text-xs font-semibold uppercase tracking-widest" style={{ color: group.color, fontFamily: "Syne" }}>{group.title}</h3>
               </div>
-              {group.items.map((h) => (
+              {isLoading ? (
+                <div className="px-4 py-4 text-xs text-center" style={{ color: "#4A5568", fontFamily: "JetBrains Mono" }}>Loading...</div>
+              ) : group.items.map((h) => (
                 <div key={h.ticker} className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: "1px solid #161A23" }}>
                   <span className="text-sm font-bold" style={{ color: "#C9963C", fontFamily: "JetBrains Mono" }}>{h.ticker}</span>
                   <span className={`text-sm font-medium ${getReturnColor(h.return_pct)}`} style={{ fontFamily: "JetBrains Mono" }}>{formatPct(h.return_pct)}</span>

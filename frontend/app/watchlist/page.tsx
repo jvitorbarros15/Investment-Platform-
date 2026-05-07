@@ -1,30 +1,45 @@
 "use client";
 
 import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
-import { MOCK_WATCHLIST } from "@/lib/mock-data";
+import { getWatchlist, addWatchlistItem, deleteWatchlistItem } from "@/lib/api";
 import { watchlistStatusColor, watchlistStatusLabel } from "@/lib/formatters";
 import type { WatchlistItem } from "@/lib/types";
 
 export default function WatchlistPage() {
-  const [items, setItems] = useState<WatchlistItem[]>(MOCK_WATCHLIST);
+  const queryClient = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ ticker: "", target_price: "", status: "STUDYING", reason: "", notes: "" });
 
+  const { data: items = [], isLoading } = useQuery<WatchlistItem[]>({
+    queryKey: ["watchlist"],
+    queryFn: getWatchlist,
+  });
+
+  const addMutation = useMutation({
+    mutationFn: addWatchlistItem,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["watchlist"] });
+      setForm({ ticker: "", target_price: "", status: "STUDYING", reason: "", notes: "" });
+      setShowAdd(false);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteWatchlistItem,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["watchlist"] }),
+  });
+
   const handleAdd = () => {
     if (!form.ticker.trim()) return;
-    const newItem: WatchlistItem = {
-      id: Date.now().toString(),
+    addMutation.mutate({
       ticker: form.ticker.toUpperCase(),
       target_price: form.target_price ? parseFloat(form.target_price) : undefined,
-      status: form.status as WatchlistItem["status"],
+      status: form.status,
       reason: form.reason || undefined,
       notes: form.notes || undefined,
-      created_at: new Date().toISOString().slice(0, 10),
-    };
-    setItems([newItem, ...items]);
-    setForm({ ticker: "", target_price: "", status: "STUDYING", reason: "", notes: "" });
-    setShowAdd(false);
+    });
   };
 
   return (
@@ -33,7 +48,7 @@ export default function WatchlistPage() {
         <div>
           <h1 className="text-2xl font-bold" style={{ fontFamily: "Syne, sans-serif", color: "#F0F2F7" }}>Watchlist</h1>
           <p className="text-sm mt-0.5" style={{ color: "#4A5568", fontFamily: "JetBrains Mono, monospace" }}>
-            {items.length} assets being monitored
+            {isLoading ? "Loading..." : `${items.length} assets being monitored`}
           </p>
         </div>
         <button
@@ -74,8 +89,10 @@ export default function WatchlistPage() {
               style={{ background: "#161A23", border: "1px solid #1E2330", color: "#F0F2F7" }} />
           </div>
           <div className="flex gap-2 mt-3">
-            <button onClick={handleAdd} className="px-4 py-2 rounded-md text-sm font-medium"
-              style={{ background: "#C9963C", color: "#0B0D12", fontFamily: "DM Sans" }}>Add</button>
+            <button onClick={handleAdd} disabled={addMutation.isPending} className="px-4 py-2 rounded-md text-sm font-medium"
+              style={{ background: "#C9963C", color: "#0B0D12", fontFamily: "DM Sans", opacity: addMutation.isPending ? 0.6 : 1 }}>
+              {addMutation.isPending ? "Adding..." : "Add"}
+            </button>
             <button onClick={() => setShowAdd(false)} className="px-4 py-2 rounded-md text-sm"
               style={{ background: "#161A23", color: "#8892A4", fontFamily: "DM Sans" }}>Cancel</button>
           </div>
@@ -94,7 +111,9 @@ export default function WatchlistPage() {
             </tr>
           </thead>
           <tbody>
-            {items.map((item, i) => (
+            {isLoading ? (
+              <tr><td colSpan={6} className="px-5 py-10 text-center text-xs" style={{ color: "#4A5568", fontFamily: "JetBrains Mono" }}>Loading...</td></tr>
+            ) : items.map((item, i) => (
               <tr key={item.id} style={{ borderBottom: i < items.length - 1 ? "1px solid #161A23" : "none" }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#161A23"; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
@@ -119,7 +138,8 @@ export default function WatchlistPage() {
                   <span className="text-xs truncate block" style={{ color: "#4A5568" }}>{item.notes || "—"}</span>
                 </td>
                 <td className="px-5 py-3.5">
-                  <button onClick={() => setItems(items.filter((x) => x.id !== item.id))}
+                  <button
+                    onClick={() => deleteMutation.mutate(item.id)}
                     className="p-1.5 rounded transition-colors"
                     style={{ color: "#4A5568" }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#F43F5E"; }}

@@ -30,7 +30,7 @@ export function AllocationChart({ data }: Props) {
       style={{ background: "#111318", borderColor: "#1E2330" }}
     >
       <h3 className="text-sm font-semibold mb-4 uppercase tracking-widest" style={{ color: "#C9963C", fontFamily: "Syne, sans-serif" }}>
-        Alocação
+        Allocation
       </h3>
       <div className="flex items-center gap-6">
         <div style={{ width: 140, height: 140, flexShrink: 0 }}>

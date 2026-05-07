@@ -1,37 +1,61 @@
 "use client";
 
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Bell, Plus, Check, AlertTriangle, TrendingUp, Info } from "lucide-react";
-import { MOCK_ALERTS } from "@/lib/mock-data";
+import { Plus, Check, AlertTriangle, TrendingUp, Info } from "lucide-react";
+import { api, getAlerts, markAlertRead } from "@/lib/api";
 import type { AlertEvent } from "@/lib/types";
 
 function alertIcon(message: string) {
-  if (message.includes("below") || message.includes("review")) return <AlertTriangle size={14} className="text-loss" style={{ color: "#F43F5E" }} />;
-  if (message.includes("return") || message.includes("exceptional")) return <TrendingUp size={14} className="text-gain" style={{ color: "#10B981" }} />;
+  if (message.includes("below") || message.includes("review") || message.includes("down")) return <AlertTriangle size={14} style={{ color: "#F43F5E" }} />;
+  if (message.includes("return") || message.includes("exceptional")) return <TrendingUp size={14} style={{ color: "#10B981" }} />;
   return <Info size={14} style={{ color: "#C9963C" }} />;
 }
 
 export default function AlertsPage() {
-  const [alerts, setAlerts] = useState<AlertEvent[]>(MOCK_ALERTS);
+  const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ ticker: "", alert_type: "PRICE_ABOVE", threshold: "" });
 
+  const { data: alerts = [], isLoading } = useQuery<AlertEvent[]>({
+    queryKey: ["alerts"],
+    queryFn: getAlerts,
+  });
+
+  const markReadMutation = useMutation({
+    mutationFn: markAlertRead,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["alerts"] }),
+  });
+
+  const markAllReadMutation = useMutation({
+    mutationFn: async () => {
+      const unread = alerts.filter((a) => !a.is_read);
+      await Promise.all(unread.map((a) => markAlertRead(a.id)));
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["alerts"] }),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (data: { ticker: string; alert_type: string; threshold_value?: number }) => {
+      const { data: res } = await api.post("/alerts/rules", data);
+      return res;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["alerts"] });
+      setForm({ ticker: "", alert_type: "PRICE_ABOVE", threshold: "" });
+      setShowCreate(false);
+    },
+  });
+
   const unread = alerts.filter((a) => !a.is_read).length;
-
-  const markRead = (id: string) => {
-    setAlerts(alerts.map((a) => (a.id === id ? { ...a, is_read: true } : a)));
-  };
-
-  const markAllRead = () => {
-    setAlerts(alerts.map((a) => ({ ...a, is_read: true })));
-  };
 
   const handleCreate = () => {
     if (!form.ticker.trim()) return;
-    const msg = `Alert created for ${form.ticker.toUpperCase()} — ${form.alert_type.replace("_", " ")} ${form.threshold}`;
-    setAlerts([{ id: Date.now().toString(), ticker: form.ticker.toUpperCase(), message: msg, triggered_at: new Date().toISOString(), is_read: false }, ...alerts]);
-    setForm({ ticker: "", alert_type: "PRICE_ABOVE", threshold: "" });
-    setShowCreate(false);
+    createMutation.mutate({
+      ticker: form.ticker.toUpperCase(),
+      alert_type: form.alert_type,
+      threshold_value: form.threshold ? parseFloat(form.threshold) : undefined,
+    });
   };
 
   return (
@@ -47,12 +71,12 @@ export default function AlertsPage() {
             )}
           </h1>
           <p className="text-sm mt-0.5" style={{ color: "#4A5568", fontFamily: "JetBrains Mono" }}>
-            Notification center for price and score alerts
+            {isLoading ? "Loading..." : "Notification center for price and score alerts"}
           </p>
         </div>
         <div className="flex gap-2">
           {unread > 0 && (
-            <button onClick={markAllRead} className="flex items-center gap-2 px-3 py-2 rounded-md text-xs"
+            <button onClick={() => markAllReadMutation.mutate()} className="flex items-center gap-2 px-3 py-2 rounded-md text-xs"
               style={{ background: "#111318", color: "#8892A4", border: "1px solid #1E2330", fontFamily: "DM Sans" }}>
               <Check size={12} /> Mark all as read
             </button>
@@ -85,8 +109,10 @@ export default function AlertsPage() {
               style={{ background: "#161A23", border: "1px solid #1E2330", color: "#F0F2F7", fontFamily: "JetBrains Mono" }} />
           </div>
           <div className="flex gap-2 mt-3">
-            <button onClick={handleCreate} className="px-4 py-2 rounded-md text-sm font-medium"
-              style={{ background: "#C9963C", color: "#0B0D12", fontFamily: "DM Sans" }}>Create</button>
+            <button onClick={handleCreate} disabled={createMutation.isPending} className="px-4 py-2 rounded-md text-sm font-medium"
+              style={{ background: "#C9963C", color: "#0B0D12", fontFamily: "DM Sans", opacity: createMutation.isPending ? 0.6 : 1 }}>
+              {createMutation.isPending ? "Creating..." : "Create"}
+            </button>
             <button onClick={() => setShowCreate(false)} className="px-4 py-2 rounded-md text-sm"
               style={{ background: "#161A23", color: "#8892A4", fontFamily: "DM Sans" }}>Cancel</button>
           </div>
@@ -95,12 +121,16 @@ export default function AlertsPage() {
 
       {/* Alerts list */}
       <div className="space-y-2">
-        {alerts.map((alert) => (
+        {isLoading ? (
+          <div className="rounded-lg p-8 text-center text-xs border" style={{ background: "#111318", borderColor: "#1E2330", color: "#4A5568", fontFamily: "JetBrains Mono" }}>
+            Loading...
+          </div>
+        ) : alerts.map((alert) => (
           <div
             key={alert.id}
             className="rounded-lg p-4 border flex items-start gap-4 transition-all"
             style={{
-              background: alert.is_read ? "#111318" : "#111318",
+              background: "#111318",
               borderColor: alert.is_read ? "#1E2330" : "rgba(201,150,60,0.2)",
               opacity: alert.is_read ? 0.7 : 1,
             }}
@@ -121,7 +151,7 @@ export default function AlertsPage() {
               </p>
             </div>
             {!alert.is_read && (
-              <button onClick={() => markRead(alert.id)} className="flex-shrink-0 p-1.5 rounded transition-colors"
+              <button onClick={() => markReadMutation.mutate(alert.id)} className="flex-shrink-0 p-1.5 rounded transition-colors"
                 style={{ color: "#4A5568" }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#10B981"; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "#4A5568"; }}>

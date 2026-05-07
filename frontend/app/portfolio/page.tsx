@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { formatBRL, formatUSD, formatPct, getReturnColor, assetClassLabel, assetClassColor } from "@/lib/formatters";
-import { MOCK_HOLDINGS } from "@/lib/mock-data";
-import type { AssetClass } from "@/lib/types";
+import { getHoldings } from "@/lib/api";
+import type { AssetClass, Holding } from "@/lib/types";
 
 const TABS: { label: string; value: AssetClass | "ALL" }[] = [
   { label: "All", value: "ALL" },
@@ -13,11 +14,20 @@ const TABS: { label: string; value: AssetClass | "ALL" }[] = [
   { label: "Crypto", value: "CRYPTO" },
 ];
 
+function withWeights(holdings: Holding[]): (Holding & { weight_in_class: number })[] {
+  const totals: Record<string, number> = {};
+  for (const h of holdings) totals[h.asset_class] = (totals[h.asset_class] || 0) + h.current_value;
+  return holdings.map((h) => ({ ...h, weight_in_class: totals[h.asset_class] > 0 ? (h.current_value / totals[h.asset_class]) * 100 : 0 }));
+}
+
 export default function PortfolioPage() {
   const [activeTab, setActiveTab] = useState<AssetClass | "ALL">("ALL");
   const [search, setSearch] = useState("");
 
-  const filtered = MOCK_HOLDINGS.filter((h) => {
+  const { data: rawHoldings = [], isLoading } = useQuery({ queryKey: ["holdings"], queryFn: getHoldings });
+  const holdings = withWeights(rawHoldings);
+
+  const filtered = holdings.filter((h) => {
     const matchClass = activeTab === "ALL" || h.asset_class === activeTab;
     const matchSearch = h.ticker.toLowerCase().includes(search.toLowerCase()) || h.name.toLowerCase().includes(search.toLowerCase());
     return matchClass && matchSearch;
@@ -33,7 +43,7 @@ export default function PortfolioPage() {
       <div>
         <h1 className="text-2xl font-bold" style={{ fontFamily: "Syne, sans-serif", color: "#F0F2F7" }}>Portfolio</h1>
         <p className="text-sm mt-0.5" style={{ color: "#4A5568", fontFamily: "JetBrains Mono, monospace" }}>
-          {MOCK_HOLDINGS.length} assets · {formatBRL(totalValue)} consolidated
+          {isLoading ? "Loading..." : `${holdings.length} assets · ${formatBRL(totalValue)} consolidated`}
         </p>
       </div>
 
@@ -83,7 +93,9 @@ export default function PortfolioPage() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((h, i) => (
+            {isLoading ? (
+              <tr><td colSpan={7} className="px-5 py-10 text-center text-xs" style={{ color: "#4A5568", fontFamily: "JetBrains Mono" }}>Loading...</td></tr>
+            ) : filtered.map((h, i) => (
               <tr
                 key={h.ticker}
                 style={{ borderBottom: i < filtered.length - 1 ? "1px solid #161A23" : "none", cursor: "pointer" }}
@@ -129,11 +141,11 @@ export default function PortfolioPage() {
                     <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: "#1E2330" }}>
                       <div
                         className="h-full rounded-full"
-                        style={{ width: `${Math.min(h.weight_in_class || 0, 100)}%`, background: assetClassColor(h.asset_class) }}
+                        style={{ width: `${Math.min(h.weight_in_class, 100)}%`, background: assetClassColor(h.asset_class) }}
                       />
                     </div>
                     <span className="text-xs w-10 text-right" style={{ color: "#8892A4", fontFamily: "JetBrains Mono" }}>
-                      {(h.weight_in_class || 0).toFixed(1)}%
+                      {h.weight_in_class.toFixed(1)}%
                     </span>
                   </div>
                 </td>

@@ -33,7 +33,8 @@ async def get_portfolio_summary(db: AsyncSession, portfolio_id: str) -> dict:
 
         cls = h.asset.asset_class if h.asset else "UNKNOWN"
         if cls not in allocation:
-            allocation[cls] = {"name": cls, "value": 0.0, "color": _class_color(cls)}
+            label = _class_label(cls)
+            allocation[cls] = {"name": label, "value": 0.0, "color": _class_color(cls)}
         allocation[cls]["value"] += val
 
     total_return_pct = (
@@ -72,6 +73,18 @@ def _holding_summary(h: Holding) -> dict:
         "total_gain": h.total_gain_including_dividends,
         "return_pct": h.return_pct,
     }
+
+
+def _class_label(cls: str) -> str:
+    labels = {
+        "BR_STOCK": "BR Stocks",
+        "FII": "FIIs",
+        "US_STOCK": "US Stocks",
+        "CRYPTO": "Crypto",
+        "ETF": "ETFs",
+        "CASH": "Cash",
+    }
+    return labels.get(cls, cls)
 
 
 def _class_color(cls: str) -> str:

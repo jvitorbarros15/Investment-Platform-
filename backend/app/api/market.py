@@ -53,6 +53,10 @@ async def refresh_prices(
             price = float(quote["price"])
             holding.current_price = price
             holding.current_value = price * holding.quantity
+            if holding.total_invested and holding.total_invested > 0:
+                holding.unrealized_gain = holding.current_value - holding.total_invested
+                holding.return_pct = (holding.unrealized_gain / holding.total_invested) * 100
+                holding.total_gain_including_dividends = holding.unrealized_gain
 
             snap = PriceSnapshot(
                 asset_id=holding.asset_id,

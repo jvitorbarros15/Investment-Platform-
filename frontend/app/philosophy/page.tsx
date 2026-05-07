@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Save } from "lucide-react";
+import { getPhilosophy, updatePhilosophy } from "@/lib/api";
+import type { PhilosophyProfile } from "@/lib/types";
 
 interface Weights {
   quality: number;
@@ -15,14 +18,8 @@ interface Weights {
 }
 
 const DEFAULTS: Weights = {
-  quality: 25,
-  value: 20,
-  growth: 10,
-  dividend: 20,
-  financial_health: 15,
-  momentum: 3,
-  risk: 4,
-  portfolio_fit: 3,
+  quality: 25, value: 20, growth: 10, dividend: 20,
+  financial_health: 15, momentum: 3, risk: 4, portfolio_fit: 3,
 };
 
 const LABELS: Record<keyof Weights, { label: string; desc: string }> = {
@@ -36,17 +33,61 @@ const LABELS: Record<keyof Weights, { label: string; desc: string }> = {
   portfolio_fit: { label: "Portfolio Fit", desc: "Diversification, sector balance" },
 };
 
+function profileToWeights(p: PhilosophyProfile): Weights {
+  return {
+    quality: p.quality_weight,
+    value: p.value_weight,
+    growth: p.growth_weight,
+    dividend: p.dividend_weight,
+    financial_health: p.financial_health_weight,
+    momentum: p.momentum_weight,
+    risk: p.risk_weight,
+    portfolio_fit: p.portfolio_fit_weight,
+  };
+}
+
+function weightsToPayload(w: Weights) {
+  return {
+    quality_weight: w.quality,
+    value_weight: w.value,
+    growth_weight: w.growth,
+    dividend_weight: w.dividend,
+    financial_health_weight: w.financial_health,
+    momentum_weight: w.momentum,
+    risk_weight: w.risk,
+    portfolio_fit_weight: w.portfolio_fit,
+  };
+}
+
 export default function PhilosophyPage() {
+  const queryClient = useQueryClient();
   const [weights, setWeights] = useState<Weights>(DEFAULTS);
+  const [profileId, setProfileId] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+
+  const { data: profiles, isLoading } = useQuery<PhilosophyProfile[]>({
+    queryKey: ["philosophy"],
+    queryFn: getPhilosophy,
+  });
+
+  useEffect(() => {
+    if (profiles && profiles.length > 0) {
+      setProfileId(profiles[0].id);
+      setWeights(profileToWeights(profiles[0]));
+    }
+  }, [profiles]);
+
+  const saveMutation = useMutation({
+    mutationFn: () => updatePhilosophy(profileId!, weightsToPayload(weights)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["philosophy"] });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    },
+  });
 
   const total = Object.values(weights).reduce((s, v) => s + v, 0);
   const isValid = Math.abs(total - 100) < 0.5;
-
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -77,36 +118,36 @@ export default function PhilosophyPage() {
           </div>
         </div>
 
-        <div className="space-y-5">
-          {(Object.keys(weights) as (keyof Weights)[]).map((key) => (
-            <div key={key}>
-              <div className="flex items-center justify-between mb-1.5">
-                <div>
-                  <span className="text-sm font-medium" style={{ color: "#F0F2F7", fontFamily: "DM Sans" }}>{LABELS[key].label}</span>
-                  <span className="text-xs ml-2" style={{ color: "#4A5568" }}>{LABELS[key].desc}</span>
+        {isLoading ? (
+          <p className="text-xs text-center py-4" style={{ color: "#4A5568", fontFamily: "JetBrains Mono" }}>Loading...</p>
+        ) : (
+          <div className="space-y-5">
+            {(Object.keys(weights) as (keyof Weights)[]).map((key) => (
+              <div key={key}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div>
+                    <span className="text-sm font-medium" style={{ color: "#F0F2F7", fontFamily: "DM Sans" }}>{LABELS[key].label}</span>
+                    <span className="text-xs ml-2" style={{ color: "#4A5568" }}>{LABELS[key].desc}</span>
+                  </div>
+                  <span className="text-sm font-bold w-10 text-right" style={{ color: "#C9963C", fontFamily: "JetBrains Mono, monospace" }}>
+                    {weights[key]}
+                  </span>
                 </div>
-                <span className="text-sm font-bold w-10 text-right" style={{ color: "#C9963C", fontFamily: "JetBrains Mono, monospace" }}>
-                  {weights[key]}
-                </span>
+                <div className="relative">
+                  <input
+                    type="range" min={0} max={60} step={1} value={weights[key]}
+                    onChange={(e) => setWeights({ ...weights, [key]: parseInt(e.target.value) })}
+                    className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, #C9963C ${(weights[key] / 60) * 100}%, #1E2330 ${(weights[key] / 60) * 100}%)`,
+                      accentColor: "#C9963C",
+                    }}
+                  />
+                </div>
               </div>
-              <div className="relative">
-                <input
-                  type="range"
-                  min={0}
-                  max={60}
-                  step={1}
-                  value={weights[key]}
-                  onChange={(e) => setWeights({ ...weights, [key]: parseInt(e.target.value) })}
-                  className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
-                  style={{
-                    background: `linear-gradient(to right, #C9963C ${(weights[key] / 60) * 100}%, #1E2330 ${(weights[key] / 60) * 100}%)`,
-                    accentColor: "#C9963C",
-                  }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {!isValid && (
           <div className="px-3 py-2 rounded-md text-xs" style={{ background: "rgba(244,63,94,0.08)", border: "1px solid rgba(244,63,94,0.2)", color: "#F43F5E", fontFamily: "JetBrains Mono" }}>
@@ -115,18 +156,18 @@ export default function PhilosophyPage() {
         )}
 
         <button
-          onClick={handleSave}
-          disabled={!isValid}
+          onClick={() => saveMutation.mutate()}
+          disabled={!isValid || !profileId || saveMutation.isPending}
           className="flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-medium transition-all"
           style={{
-            background: isValid ? "#C9963C" : "#1E2330",
-            color: isValid ? "#0B0D12" : "#4A5568",
-            cursor: isValid ? "pointer" : "not-allowed",
+            background: isValid && profileId ? "#C9963C" : "#1E2330",
+            color: isValid && profileId ? "#0B0D12" : "#4A5568",
+            cursor: isValid && profileId ? "pointer" : "not-allowed",
             fontFamily: "DM Sans",
           }}
         >
           <Save size={14} />
-          {saved ? "Saved!" : "Save Philosophy"}
+          {saved ? "Saved!" : saveMutation.isPending ? "Saving..." : "Save Philosophy"}
         </button>
       </div>
 
