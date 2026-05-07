@@ -1,5 +1,6 @@
-# Markdown docs (keep code, ignore docs)
+# Markdown docs (ignore project docs, keep README)
 *.md
+!README.md
 
 # Python
 __pycache__/
@@ -40,6 +41,9 @@ yarn-error.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# vscode
+.vscode
 
 # Docker
 *.log
