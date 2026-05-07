@@ -6,8 +6,8 @@ import { MOCK_ALERTS } from "@/lib/mock-data";
 import type { AlertEvent } from "@/lib/types";
 
 function alertIcon(message: string) {
-  if (message.includes("queda") || message.includes("revisar")) return <AlertTriangle size={14} className="text-loss" style={{ color: "#F43F5E" }} />;
-  if (message.includes("retorno") || message.includes("excepcional")) return <TrendingUp size={14} className="text-gain" style={{ color: "#10B981" }} />;
+  if (message.includes("below") || message.includes("review")) return <AlertTriangle size={14} className="text-loss" style={{ color: "#F43F5E" }} />;
+  if (message.includes("return") || message.includes("exceptional")) return <TrendingUp size={14} className="text-gain" style={{ color: "#10B981" }} />;
   return <Info size={14} style={{ color: "#C9963C" }} />;
 }
 
@@ -28,7 +28,7 @@ export default function AlertsPage() {
 
   const handleCreate = () => {
     if (!form.ticker.trim()) return;
-    const msg = `Alerta criado para ${form.ticker.toUpperCase()} — ${form.alert_type.replace("_", " ")} ${form.threshold}`;
+    const msg = `Alert created for ${form.ticker.toUpperCase()} — ${form.alert_type.replace("_", " ")} ${form.threshold}`;
     setAlerts([{ id: Date.now().toString(), ticker: form.ticker.toUpperCase(), message: msg, triggered_at: new Date().toISOString(), is_read: false }, ...alerts]);
     setForm({ ticker: "", alert_type: "PRICE_ABOVE", threshold: "" });
     setShowCreate(false);
@@ -39,27 +39,27 @@ export default function AlertsPage() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold" style={{ fontFamily: "Syne, sans-serif", color: "#F0F2F7" }}>
-            Alertas
+            Alerts
             {unread > 0 && (
               <span className="ml-3 text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(244,63,94,0.15)", color: "#F43F5E", fontFamily: "JetBrains Mono", verticalAlign: "middle" }}>
-                {unread} novos
+                {unread} new
               </span>
             )}
           </h1>
           <p className="text-sm mt-0.5" style={{ color: "#4A5568", fontFamily: "JetBrains Mono" }}>
-            Central de notificações e alertas de preço/score
+            Notification center for price and score alerts
           </p>
         </div>
         <div className="flex gap-2">
           {unread > 0 && (
             <button onClick={markAllRead} className="flex items-center gap-2 px-3 py-2 rounded-md text-xs"
               style={{ background: "#111318", color: "#8892A4", border: "1px solid #1E2330", fontFamily: "DM Sans" }}>
-              <Check size={12} /> Marcar todos lidos
+              <Check size={12} /> Mark all as read
             </button>
           )}
           <button onClick={() => setShowCreate(!showCreate)} className="flex items-center gap-2 px-4 py-2 rounded-md text-sm"
             style={{ background: "rgba(201,150,60,0.12)", color: "#C9963C", border: "1px solid rgba(201,150,60,0.25)", fontFamily: "DM Sans" }}>
-            <Plus size={14} /> Criar alerta
+            <Plus size={14} /> Create Alert
           </button>
         </div>
       </div>
@@ -67,7 +67,7 @@ export default function AlertsPage() {
       {/* Create form */}
       {showCreate && (
         <div className="rounded-lg p-5 border" style={{ background: "#111318", borderColor: "#C9963C40" }}>
-          <h3 className="text-sm font-semibold mb-4" style={{ color: "#C9963C", fontFamily: "Syne" }}>Novo alerta</h3>
+          <h3 className="text-sm font-semibold mb-4" style={{ color: "#C9963C", fontFamily: "Syne" }}>New Alert</h3>
           <div className="grid grid-cols-3 gap-3">
             <input value={form.ticker} onChange={(e) => setForm({ ...form, ticker: e.target.value })}
               placeholder="Ticker" className="px-3 py-2 rounded-md text-sm outline-none"
@@ -75,20 +75,20 @@ export default function AlertsPage() {
             <select value={form.alert_type} onChange={(e) => setForm({ ...form, alert_type: e.target.value })}
               className="px-3 py-2 rounded-md text-sm outline-none"
               style={{ background: "#161A23", border: "1px solid #1E2330", color: "#F0F2F7", fontFamily: "DM Sans" }}>
-              <option value="PRICE_ABOVE">Preço acima de</option>
-              <option value="PRICE_BELOW">Preço abaixo de</option>
-              <option value="RETURN_ABOVE">Retorno acima de %</option>
-              <option value="RETURN_BELOW">Retorno abaixo de %</option>
+              <option value="PRICE_ABOVE">Price above</option>
+              <option value="PRICE_BELOW">Price below</option>
+              <option value="RETURN_ABOVE">Return above %</option>
+              <option value="RETURN_BELOW">Return below %</option>
             </select>
             <input value={form.threshold} onChange={(e) => setForm({ ...form, threshold: e.target.value })}
-              placeholder="Valor limite" type="number" className="px-3 py-2 rounded-md text-sm outline-none"
+              placeholder="Threshold value" type="number" className="px-3 py-2 rounded-md text-sm outline-none"
               style={{ background: "#161A23", border: "1px solid #1E2330", color: "#F0F2F7", fontFamily: "JetBrains Mono" }} />
           </div>
           <div className="flex gap-2 mt-3">
             <button onClick={handleCreate} className="px-4 py-2 rounded-md text-sm font-medium"
-              style={{ background: "#C9963C", color: "#0B0D12", fontFamily: "DM Sans" }}>Criar</button>
+              style={{ background: "#C9963C", color: "#0B0D12", fontFamily: "DM Sans" }}>Create</button>
             <button onClick={() => setShowCreate(false)} className="px-4 py-2 rounded-md text-sm"
-              style={{ background: "#161A23", color: "#8892A4", fontFamily: "DM Sans" }}>Cancelar</button>
+              style={{ background: "#161A23", color: "#8892A4", fontFamily: "DM Sans" }}>Cancel</button>
           </div>
         </div>
       )}
@@ -117,7 +117,7 @@ export default function AlertsPage() {
               </div>
               <p className="text-sm" style={{ color: "#F0F2F7" }}>{alert.message}</p>
               <p className="text-xs mt-1" style={{ color: "#4A5568", fontFamily: "JetBrains Mono" }}>
-                {new Date(alert.triggered_at).toLocaleDateString("pt-BR")}
+                {new Date(alert.triggered_at).toLocaleDateString("en-US")}
               </p>
             </div>
             {!alert.is_read && (

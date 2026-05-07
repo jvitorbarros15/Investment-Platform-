@@ -52,17 +52,17 @@ export default function PhilosophyPage() {
     <div className="space-y-6 max-w-2xl">
       <div>
         <h1 className="text-2xl font-bold" style={{ fontFamily: "Syne, sans-serif", color: "#F0F2F7" }}>
-          Filosofia de Investimento
+          Investment Philosophy
         </h1>
         <p className="text-sm mt-0.5" style={{ color: "#4A5568" }}>
-          Defina o peso de cada critério para personalizar o scoring dos ativos.
+          Define the weight of each criterion to personalize asset scoring.
         </p>
       </div>
 
       <div className="rounded-lg border p-6 space-y-6" style={{ background: "#111318", borderColor: "#1E2330" }}>
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold uppercase tracking-widest" style={{ color: "#C9963C", fontFamily: "Syne" }}>
-            Pesos por Categoria
+            Weights by Category
           </h3>
           <div
             className="flex items-center gap-2 px-3 py-1.5 rounded-md"
@@ -110,7 +110,7 @@ export default function PhilosophyPage() {
 
         {!isValid && (
           <div className="px-3 py-2 rounded-md text-xs" style={{ background: "rgba(244,63,94,0.08)", border: "1px solid rgba(244,63,94,0.2)", color: "#F43F5E", fontFamily: "JetBrains Mono" }}>
-            ⚠ Total deve ser 100. Diferença atual: {(total - 100).toFixed(0)}
+            ⚠ Total must be 100. Current difference: {(total - 100).toFixed(0)}
           </div>
         )}
 
@@ -126,14 +126,14 @@ export default function PhilosophyPage() {
           }}
         >
           <Save size={14} />
-          {saved ? "Salvo!" : "Salvar filosofia"}
+          {saved ? "Saved!" : "Save Philosophy"}
         </button>
       </div>
 
       {/* Preview */}
       <div className="rounded-lg border p-5" style={{ background: "#111318", borderColor: "#1E2330" }}>
         <h3 className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: "#8892A4", fontFamily: "Syne" }}>
-          Visualização dos pesos
+          Weight Preview
         </h3>
         <div className="space-y-2">
           {(Object.keys(weights) as (keyof Weights)[]).map((key) => (

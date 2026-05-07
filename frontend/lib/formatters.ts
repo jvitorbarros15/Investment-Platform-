@@ -35,7 +35,7 @@ export function getReturnSign(pct: number): string {
 
 export function assetClassLabel(cls: string): string {
   const map: Record<string, string> = {
-    BR_STOCK: "Ação BR",
+    BR_STOCK: "BR Stock",
     US_STOCK: "US Stock",
     FII: "FII",
     CRYPTO: "Crypto",

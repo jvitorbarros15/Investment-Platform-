@@ -6,8 +6,8 @@ import { MOCK_HOLDINGS } from "@/lib/mock-data";
 import type { AssetClass } from "@/lib/types";
 
 const TABS: { label: string; value: AssetClass | "ALL" }[] = [
-  { label: "Todos", value: "ALL" },
-  { label: "Ações BR", value: "BR_STOCK" },
+  { label: "All", value: "ALL" },
+  { label: "BR Stocks", value: "BR_STOCK" },
   { label: "FIIs", value: "FII" },
   { label: "US Stocks", value: "US_STOCK" },
   { label: "Crypto", value: "CRYPTO" },
@@ -33,7 +33,7 @@ export default function PortfolioPage() {
       <div>
         <h1 className="text-2xl font-bold" style={{ fontFamily: "Syne, sans-serif", color: "#F0F2F7" }}>Portfolio</h1>
         <p className="text-sm mt-0.5" style={{ color: "#4A5568", fontFamily: "JetBrains Mono, monospace" }}>
-          {MOCK_HOLDINGS.length} ativos · {formatBRL(totalValue)} consolidado
+          {MOCK_HOLDINGS.length} assets · {formatBRL(totalValue)} consolidated
         </p>
       </div>
 
@@ -60,7 +60,7 @@ export default function PortfolioPage() {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar ticker ou nome..."
+          placeholder="Search ticker or name..."
           className="px-4 py-2 rounded-md text-sm outline-none w-64"
           style={{ background: "#111318", border: "1px solid #1E2330", color: "#F0F2F7", fontFamily: "JetBrains Mono, monospace" }}
         />
@@ -71,7 +71,7 @@ export default function PortfolioPage() {
         <table className="w-full">
           <thead>
             <tr style={{ borderBottom: "1px solid #1E2330", background: "#0D0F14" }}>
-              {["Ticker", "Nome", "Classe", "Valor Atual", "Ganho Total", "Rentabilidade", "Peso (%)"].map((h, i) => (
+              {["Ticker", "Name", "Class", "Current Value", "Total Gain", "Return", "Weight (%)"].map((h, i) => (
                 <th
                   key={h}
                   className={`px-5 py-3 text-xs uppercase tracking-widest ${i >= 3 ? "text-right" : "text-left"}`}

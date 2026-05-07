@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={`h-full ${syne.variable} ${jetbrainsMono.variable} ${dmSans.variable}`}>
+    <html lang="en-US" className={`h-full ${syne.variable} ${jetbrainsMono.variable} ${dmSans.variable}`}>
       <body className="h-full flex antialiased" style={{ background: "#0B0D12" }}>
         <Providers>
           <Sidebar />

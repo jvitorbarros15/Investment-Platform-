@@ -25,11 +25,11 @@ export const MOCK_SUMMARY: PortfolioSummary = {
   total_return_pct: 23.74,
   usd_to_brl: 5.70,
   allocation: [
-    { name: "Ações BR", value: 7895.62, pct: 43.2, color: "#C9963C" },
+    { name: "BR Stocks", value: 7895.62, pct: 43.2, color: "#C9963C" },
     { name: "FIIs", value: 2140.02, pct: 11.7, color: "#3B82F6" },
     { name: "US Stocks", value: 1337.99, pct: 7.3, color: "#8B5CF6" },
     { name: "Crypto", value: 4016.57, pct: 22.0, color: "#10B981" },
-    { name: "Outros", value: 2904.40, pct: 15.9, color: "#4A5568" },
+    { name: "Other", value: 2904.40, pct: 15.9, color: "#4A5568" },
   ],
   top_gainers: [
     { ticker: "KNCR11", name: "FII Kinea RI", asset_class: "FII", currency: "BRL", current_value: 746.34, total_gain: 531.38, return_pct: 61.69 },
@@ -51,9 +51,9 @@ export const MOCK_WATCHLIST: WatchlistItem[] = [
 ];
 
 export const MOCK_ALERTS: AlertEvent[] = [
-  { id: "1", ticker: "ISAE4", message: "ISAE4 alcançou retorno de +41.44% — considere revisar sua posição.", triggered_at: "2025-05-07T10:30:00Z", is_read: false },
-  { id: "2", ticker: "RGTI", message: "RGTI em queda de -49.07% — revise a tese de investimento.", triggered_at: "2025-05-06T15:00:00Z", is_read: false },
-  { id: "3", ticker: "KNCR11", message: "KNCR11 com rentabilidade excepcional de +61.69%. Posição forte.", triggered_at: "2025-05-05T09:00:00Z", is_read: true },
+  { id: "1", ticker: "ISAE4", message: "ISAE4 reached return of +41.44% — consider reviewing your position.", triggered_at: "2025-05-07T10:30:00Z", is_read: false },
+  { id: "2", ticker: "RGTI", message: "RGTI down -49.07% — review your investment thesis.", triggered_at: "2025-05-06T15:00:00Z", is_read: false },
+  { id: "3", ticker: "KNCR11", message: "KNCR11 with exceptional return of +61.69%. Strong position.", triggered_at: "2025-05-05T09:00:00Z", is_read: true },
 ];
 
 // Generate fake 30-day portfolio performance data
@@ -68,7 +68,7 @@ export function generatePortfolioHistory(finalValue: number = 18294.60) {
     const trend = startValue + (finalValue - startValue) * progress;
     const noise = (Math.random() - 0.48) * finalValue * 0.015;
     data.push({
-      date: date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),
+      date: date.toLocaleDateString("en-US", { day: "2-digit", month: "2-digit" }),
       value: Math.round((trend + noise) * 100) / 100,
     });
   }
