@@ -43,6 +43,11 @@ WATCHLIST_SEEDS = [
     {"ticker": "MXRF11", "status": "WAITING_PRICE", "reason": "FII with strong yield", "notes": "Good DY but waiting for R$ 10.50 target.", "target_price": 10.50},
     {"ticker": "AAPL", "status": "STRONG_CANDIDATE", "reason": "Services growth + buybacks", "notes": "Quality play. Strong margins.", "target_price": 185.0},
     {"ticker": "PETR4", "status": "STUDYING", "reason": "Oil + dividend play", "notes": "Political risk factor. Monitor Petrobras policy.", "target_price": 40.0},
+    {"ticker": "USAR", "status": "STUDYING", "reason": "US uranium + rare earth exposure", "notes": "Beneficiary of energy transition and supply chain diversification.", "target_price": 28.0},
+    {"ticker": "TSM", "status": "STRONG_CANDIDATE", "reason": "Leading semiconductor foundry + AI exposure", "notes": "Critical player in chip supply chain, strong financials.", "target_price": 140.0},
+    {"ticker": "NNE", "status": "STUDYING", "reason": "Nuclear energy infrastructure", "notes": "Positioned for nuclear renaissance in clean energy.", "target_price": 32.0},
+    {"ticker": "SMR", "status": "WAITING_PRICE", "reason": "Small modular reactor technology", "notes": "Emerging technology, waiting for better risk/reward entry.", "target_price": 24.5},
+    {"ticker": "PLTR", "status": "STRONG_CANDIDATE", "reason": "AI + data analytics leader with defense contracts", "notes": "Strong growth trajectory, expanding commercial customer base.", "target_price": 35.0},
 ]
 
 
