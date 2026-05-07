@@ -19,7 +19,7 @@ const NAV = [
   { href: "/alerts", label: "Alerts", icon: Bell },
 ];
 
-export function Sidebar() {
+export function Sidebar({ logoutSlot }: { logoutSlot?: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
@@ -83,12 +83,13 @@ export function Sidebar() {
           >
             J
           </div>
-          <div className="overflow-hidden">
+          <div className="overflow-hidden flex-1 min-w-0">
             <p className="text-xs font-medium truncate" style={{ color: "#F0F2F7" }}>Joao Vitor</p>
             <p className="text-xs truncate" style={{ color: "#4A5568", fontFamily: "JetBrains Mono, monospace" }}>
               admin@invest.local
             </p>
           </div>
+          {logoutSlot}
         </div>
       </div>
     </aside>

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Syne, JetBrains_Mono, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { LayoutWrapper } from "@/components/layout/LayoutWrapper";
 
 const syne = Syne({ subsets: ["latin"], variable: "--font-syne", display: "swap" });
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono", display: "swap" });
@@ -18,12 +18,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en-US" className={`h-full ${syne.variable} ${jetbrainsMono.variable} ${dmSans.variable}`}>
       <body className="h-full flex antialiased" style={{ background: "#0B0D12" }}>
         <Providers>
-          <Sidebar />
-          <main className="flex-1 ml-60 min-h-screen overflow-y-auto relative z-10">
-            <div className="max-w-7xl mx-auto px-6 py-8">
-              {children}
-            </div>
-          </main>
+          <LayoutWrapper>
+            {children}
+          </LayoutWrapper>
         </Providers>
       </body>
     </html>
