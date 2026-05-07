@@ -53,20 +53,7 @@ password: invest123
 
 ## Portfolio (pre-seeded)
 
-| Ticker | Type | Value |
-|--------|------|-------|
-| BBAS3 | Ação BR | R$ 2.768,60 |
-| BBSE3 | Ação BR | R$ 620,10 |
-| ISAE4 | Ação BR | R$ 4.220,13 |
-| TAEE11 | Ação BR | R$ 286,79 |
-| KNCR11 | FII | R$ 746,34 |
-| MFII11 | FII | R$ 1.393,68 |
-| IONQ | US Stock | US$ 93,63 |
-| QBTS | US Stock | US$ 66,04 |
-| NVDA | US Stock | US$ 44,61 |
-| RGTI | US Stock | US$ 30,55 |
-| BTC | Crypto | US$ 689,57 |
-| XRP | Crypto | US$ 12,96 |
+The database seeds with a sample portfolio across Brazilian stocks (Ações BR), FIIs, US stocks, and crypto. Add your own holdings via the UI or update `backend/app/db/seed.py`.
 
 ## Project Structure
 
