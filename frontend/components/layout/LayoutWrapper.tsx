@@ -43,7 +43,7 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   if (!token && !isLoginPage) return null;
 
   if (isLoginPage) {
-    return <>{children}</>;
+    return <div className="w-full">{children}</div>;
   }
 
   return (
