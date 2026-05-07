@@ -48,6 +48,11 @@ export const MOCK_WATCHLIST: WatchlistItem[] = [
   { id: "2", ticker: "MXRF11", target_price: 10.50, status: "WAITING_PRICE", reason: "FII with above-average yield", notes: "Target R$ 10.50 for good DY entry.", created_at: "2025-03-15" },
   { id: "3", ticker: "AAPL", target_price: 185.00, status: "STRONG_CANDIDATE", reason: "Services revenue + buyback machine", notes: "Strong margins, waiting for 10% pullback.", created_at: "2025-04-01" },
   { id: "4", ticker: "PETR4", target_price: 40.00, status: "STUDYING", reason: "High dividend but political risk", notes: "Monitor Petrobras dividend policy changes.", created_at: "2025-04-20" },
+  { id: "5", ticker: "USAR", target_price: 28.00, status: "STUDYING", reason: "US uranium + rare earth exposure", notes: "Beneficiary of energy transition and supply chain diversification.", created_at: "2025-05-07" },
+  { id: "6", ticker: "TSM", target_price: 140.00, status: "STRONG_CANDIDATE", reason: "Leading semiconductor foundry + AI exposure", notes: "Critical player in chip supply chain, strong financials.", created_at: "2025-05-07" },
+  { id: "7", ticker: "NNE", target_price: 32.00, status: "STUDYING", reason: "Nuclear energy infrastructure", notes: "Positioned for nuclear renaissance in clean energy.", created_at: "2025-05-07" },
+  { id: "8", ticker: "SMR", target_price: 24.50, status: "WAITING_PRICE", reason: "Small modular reactor technology", notes: "Emerging technology, waiting for better risk/reward entry.", created_at: "2025-05-07" },
+  { id: "9", ticker: "PLTR", target_price: 35.00, status: "STRONG_CANDIDATE", reason: "AI + data analytics leader with defense contracts", notes: "Strong growth trajectory, expanding commercial customer base.", created_at: "2025-05-07" },
 ];
 
 export const MOCK_ALERTS: AlertEvent[] = [
