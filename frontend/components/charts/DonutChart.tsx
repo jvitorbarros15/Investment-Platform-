@@ -1,6 +1,6 @@
 "use client";
 
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 
 interface Slice { label: string; value: number; pct: number; color: string; }
 
@@ -31,8 +31,8 @@ export function DonutChart({ data, size = 184, centerLabel = "Total", centerValu
         </div>
       </div>
       <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}>
-        {data.map(s => (
-          <li key={s.label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {data.map((s, i) => (
+          <li key={`${s.label}-${i}`} style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: s.color, flexShrink: 0 }} />
             <span style={{ fontSize: 13, color: "rgba(245,241,232,0.7)", flex: 1 }}>{s.label}</span>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "rgba(245,241,232,0.5)" }}>{s.pct.toFixed(1)}%</span>

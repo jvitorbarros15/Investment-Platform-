@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getWatchlist } from "@/lib/api";
 import { Reveal } from "@/components/ui/reveal";
 import { Sparkline } from "@/components/ui/sparkline";
-import { ClassChip, CLASS_COLOR } from "@/components/ui/class-chip";
+import { ClassChip } from "@/components/ui/class-chip";
 import { ScoreBadge } from "@/components/ui/score-badge";
 import type { WatchlistStatus, WatchlistItem } from "@/lib/types";
 
@@ -72,7 +72,7 @@ export default function WatchlistPage() {
             Watchlist · {watchlist.length} candidates
           </div>
           <h1 style={{ fontFamily: "var(--font-display)", fontSize: 36, lineHeight: 1.2, letterSpacing: "-0.02em", color: "#f5f1e8", margin: 0 }}>
-            What you're studying
+            What you&apos;re studying
           </h1>
         </div>
       </Reveal>
@@ -108,7 +108,7 @@ export default function WatchlistPage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(min(320px, 100%), 1fr))",
             gap: 16,
           }}
         >
@@ -227,7 +227,7 @@ export default function WatchlistPage() {
                         borderTop: "1px solid rgba(255,255,255,0.07)",
                       }}
                     >
-                      "{w.reason || "No reason provided"}"
+                      &quot;{w.reason || "No reason provided"}&quot;
                     </div>
                   </div>
                 </Reveal>

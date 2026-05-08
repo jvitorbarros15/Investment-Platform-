@@ -2,10 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { refreshPrices } from "@/lib/api";
+import { useCurrencyStore } from "@/lib/currency-store";
+import type { Currency } from "@/lib/types";
 
 export function Topbar() {
   const [now, setNow] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const currency = useCurrencyStore((s) => s.currency);
+  const setCurrency = useCurrencyStore((s) => s.setCurrency);
 
   useEffect(() => {
     const i = setInterval(() => setNow(new Date()), 1000);
@@ -27,23 +31,23 @@ export function Topbar() {
   };
 
   return (
-    <header style={{
+    <header className="app-topbar" style={{
       height: 56, borderBottom: "1px solid rgba(255,255,255,0.07)",
       background: "#0c0b08", display: "flex", alignItems: "center",
       padding: "0 32px", gap: 24, position: "sticky", top: 0, zIndex: 30,
     }}>
       {/* Left: market status + date */}
-      <div style={{ display: "flex", alignItems: "center", gap: 16, flex: 1 }}>
+      <div className="app-topbar-status" style={{ display: "flex", alignItems: "center", gap: 16, flex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#7dd3a8", animation: "marketPulse 2s infinite", display: "inline-block" }} />
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.12em", color: "#7dd3a8" }}>MARKETS OPEN</span>
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "rgba(245,241,232,0.5)" }}>{timeStr} <span style={{ opacity: 0.5 }}>EST</span></span>
         </div>
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "rgba(245,241,232,0.35)" }}>{dateStr}</span>
+        <span className="app-topbar-date" style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "rgba(245,241,232,0.35)" }}>{dateStr}</span>
       </div>
 
       {/* Center: search */}
-      <div style={{
+      <div className="app-topbar-search" style={{
         display: "flex", alignItems: "center", gap: 8,
         background: "#14130f", border: "1px solid rgba(255,255,255,0.08)",
         borderRadius: 8, padding: "6px 12px", width: 320,
@@ -59,14 +63,14 @@ export function Topbar() {
       </div>
 
       {/* Right: CCY toggle + actions */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, justifyContent: "flex-end" }}>
+      <div className="app-topbar-actions" style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, justifyContent: "flex-end" }}>
         <div style={{ display: "flex", background: "#14130f", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, overflow: "hidden" }}>
-          {["USD", "BRL"].map(c => (
-            <button key={c} style={{
+          {(["USD", "BRL"] as Currency[]).map(c => (
+            <button key={c} onClick={() => setCurrency(c)} aria-pressed={currency === c} style={{
               padding: "4px 10px", fontSize: 11, fontFamily: "var(--font-mono)",
-              background: c === "BRL" ? "#c9f76f" : "none",
-              color: c === "BRL" ? "#0c0b08" : "rgba(245,241,232,0.5)",
-              border: "none", cursor: "pointer", fontWeight: c === "BRL" ? 600 : 400,
+              background: c === currency ? "#c9f76f" : "none",
+              color: c === currency ? "#0c0b08" : "rgba(245,241,232,0.5)",
+              border: "none", cursor: "pointer", fontWeight: c === currency ? 600 : 400,
             }}>{c}</button>
           ))}
         </div>

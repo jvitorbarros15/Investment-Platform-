@@ -28,11 +28,11 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#0c0b08" }}>
+    <div className="app-shell">
       <Sidebar />
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+      <div className="app-content">
         <Topbar />
-        <main style={{ flex: 1, padding: "32px", maxWidth: 1440, width: "100%" }}>
+        <main className="app-main">
           {children}
         </main>
       </div>

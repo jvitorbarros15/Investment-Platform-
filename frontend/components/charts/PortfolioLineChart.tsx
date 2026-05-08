@@ -1,16 +1,39 @@
 "use client";
 
 import { useState } from "react";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 interface DataPoint { date: string; value: number; }
 
 interface Props {
   data: DataPoint[];
   color?: string;
+  currency?: "BRL" | "USD";
 }
 
-function CustomTooltip({ active, payload, label }: any) {
+interface TooltipPayload {
+  value?: number;
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: TooltipPayload[];
+  label?: string;
+}
+
+function formatMoney(value: number, currency: "BRL" | "USD", compact = false) {
+  if (compact) {
+    const prefix = currency === "BRL" ? "R$" : "$";
+    return `${prefix}${(value / 1000).toFixed(0)}k`;
+  }
+  return new Intl.NumberFormat(currency === "BRL" ? "pt-BR" : "en-US", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function CustomTooltip({ active, payload, label, currency = "BRL" }: CustomTooltipProps & { currency?: "BRL" | "USD" }) {
   if (!active || !payload?.length) return null;
   return (
     <div style={{
@@ -19,13 +42,13 @@ function CustomTooltip({ active, payload, label }: any) {
     }}>
       <div style={{ color: "rgba(245,241,232,0.5)", marginBottom: 4 }}>{label}</div>
       <div style={{ color: "#c9f76f", fontWeight: 600 }}>
-        R$ {payload[0]?.value?.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+        {formatMoney(payload[0]?.value ?? 0, currency)}
       </div>
     </div>
   );
 }
 
-export function PortfolioLineChart({ data, color = "#c9f76f" }: Props) {
+export function PortfolioLineChart({ data, color = "#c9f76f", currency = "BRL" }: Props) {
   const RANGES = ["1M", "3M", "6M", "ALL"] as const;
   const [range, setRange] = useState<typeof RANGES[number]>("1M");
 
@@ -59,8 +82,8 @@ export function PortfolioLineChart({ data, color = "#c9f76f" }: Props) {
             </linearGradient>
           </defs>
           <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-          <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} width={56} />
-          <Tooltip content={<CustomTooltip />} />
+          <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => formatMoney(Number(v), currency, true)} width={56} />
+          <Tooltip content={<CustomTooltip currency={currency} />} />
           <Area type="monotone" dataKey="value" stroke={color} strokeWidth={2} fill="url(#portGrad)" dot={false} />
         </AreaChart>
       </ResponsiveContainer>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useId, useMemo, useRef } from "react";
 
 interface Props {
   data: number[];
@@ -13,7 +13,7 @@ interface Props {
 
 export function Sparkline({ data, width = 80, height = 26, color = "#7dd3a8", strokeWidth = 1.5, fill = true }: Props) {
   const pathRef = useRef<SVGPathElement>(null);
-  const gradId = useMemo(() => `sg-${Math.random().toString(36).slice(2, 8)}`, []);
+  const gradId = `sg-${useId().replace(/:/g, "")}`;
 
   const { d, area } = useMemo(() => {
     if (!data || data.length < 2) return { d: "", area: "" };

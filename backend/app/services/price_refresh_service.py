@@ -1,5 +1,6 @@
 import logging
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from app.db.session import AsyncSessionLocal
 from app.db.models import Holding, Portfolio, PriceSnapshot
 from app.services.market_data.yahoo_provider import YahooFinanceProvider
@@ -11,7 +12,11 @@ _usd_to_brl: float = 5.70  # Module-level cache for exchange rate
 async def refresh_all_portfolios() -> dict:
     """Refresh prices for all holdings across all portfolios."""
     async with AsyncSessionLocal() as db:
-        result = await db.execute(select(Holding).join(Portfolio))
+        result = await db.execute(
+            select(Holding)
+            .join(Portfolio)
+            .options(selectinload(Holding.asset))
+        )
         holdings = result.scalars().all()
 
         updated = 0

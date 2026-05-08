@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getPhilosophy, updatePhilosophy, getHoldings, getWatchlist } from "@/lib/api";
 import { Reveal } from "@/components/ui/reveal";
@@ -68,8 +68,7 @@ function weightsToPayload(w: Weights) {
 
 export default function PhilosophyPage() {
   const queryClient = useQueryClient();
-  const [weights, setWeights] = useState<Weights>(DEFAULTS);
-  const [profileId, setProfileId] = useState<string | null>(null);
+  const [draftWeights, setDraftWeights] = useState<Weights | null>(null);
   const [saved, setSaved] = useState(false);
 
   const { data: profiles, isLoading } = useQuery({
@@ -80,17 +79,15 @@ export default function PhilosophyPage() {
   const { data: holdings = [] } = useQuery({ queryKey: ["holdings"], queryFn: getHoldings });
   const { data: watchlist = [] } = useQuery({ queryKey: ["watchlist"], queryFn: getWatchlist });
 
-  useEffect(() => {
-    if (profiles && profiles.length > 0) {
-      setProfileId(profiles[0].id);
-      setWeights(profileToWeights(profiles[0]));
-    }
-  }, [profiles]);
+  const profile = profiles?.[0] ?? null;
+  const profileId = profile?.id ?? null;
+  const weights = draftWeights ?? (profile ? profileToWeights(profile) : DEFAULTS);
 
   const saveMutation = useMutation({
     mutationFn: () => updatePhilosophy(profileId!, weightsToPayload(weights)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["philosophy"] });
+      setDraftWeights(null);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     },
@@ -103,7 +100,7 @@ export default function PhilosophyPage() {
   const ranked = useMemo(() => {
     return [...holdings, ...watchlist]
       .slice(0, 6)
-      .map((a, i) => {
+      .map((a) => {
         const factor =
           weights.quality * 0.85 +
           weights.value * 0.6 +
@@ -135,7 +132,7 @@ export default function PhilosophyPage() {
           <div style={{ marginBottom: 8, color: "#8892a4", fontSize: 12, fontWeight: 500, letterSpacing: "0.05em" }}>
             Investment philosophy
           </div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 36, lineHeight: 1.2, letterSpacing: "-0.02em", color: "#f5f1e8", margin: 0 }}>
+          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(30px, 4vw, 36px)", lineHeight: 1.2, color: "#f5f1e8", margin: 0 }}>
             How you score every asset
           </h1>
           <p style={{ color: "#8892a4", fontSize: 14, marginTop: 8, maxWidth: 600 }}>
@@ -171,7 +168,7 @@ export default function PhilosophyPage() {
       </Reveal>
 
       {/* TWO COLUMN LAYOUT */}
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(360px, 100%), 1fr))", gap: 24 }}>
         {/* LEFT: SLIDERS */}
         <Reveal delay={100}>
           <div style={PANEL}>
@@ -205,7 +202,7 @@ export default function PhilosophyPage() {
                       min="0"
                       max="50"
                       value={weights[cat.key as keyof Weights]}
-                      onChange={(e) => setWeights({ ...weights, [cat.key]: parseInt(e.target.value) })}
+                      onChange={(e) => setDraftWeights({ ...weights, [cat.key]: parseInt(e.target.value) })}
                       style={{
                         width: "100%",
                         height: 6,
@@ -250,7 +247,7 @@ export default function PhilosophyPage() {
                 {saved ? "Saved!" : saveMutation.isPending ? "Saving..." : "Save"}
               </button>
               <button
-                onClick={() => setWeights(DEFAULTS)}
+                onClick={() => setDraftWeights(DEFAULTS)}
                 style={{
                   padding: "10px 16px",
                   borderRadius: 8,
@@ -278,7 +275,7 @@ export default function PhilosophyPage() {
 
         {/* RIGHT: LIVE PREVIEW */}
         <Reveal delay={200}>
-          <div style={{ ...PANEL, position: "sticky", top: 100, display: "flex", flexDirection: "column" }}>
+          <div style={{ ...PANEL, position: "sticky", top: 80, display: "flex", flexDirection: "column" }}>
             <div style={{ marginBottom: 20 }}>
               <div style={{ color: "#8892a4", fontSize: 11, fontWeight: 600, letterSpacing: "0.05em", marginBottom: 4 }}>
                 Live preview

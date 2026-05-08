@@ -4,15 +4,23 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getPortfolioSummary, getHoldings, getPortfolioHistory, refreshPrices } from "@/lib/api";
 import { AnimatedNumber } from "@/components/ui/animated-number";
-import { ScoreBadge } from "@/components/ui/score-badge";
 import { Reveal } from "@/components/ui/reveal";
 import { TickPulse } from "@/components/ui/tick-pulse";
 import { Sparkline } from "@/components/ui/sparkline";
 import { PortfolioLineChart } from "@/components/charts/PortfolioLineChart";
 import { DonutChart } from "@/components/charts/DonutChart";
 import { BarList } from "@/components/charts/BarList";
-import { CLASS_COLOR } from "@/components/ui/class-chip";
+import { useCurrencyStore } from "@/lib/currency-store";
+import { convertCurrency, formatCurrency } from "@/lib/formatters";
 import type { Holding } from "@/lib/types";
+
+interface AllocationSummary {
+  name?: string;
+  value?: number;
+  value_brl?: number;
+  pct?: number;
+  color?: string;
+}
 
 function genSparkData(seed: number, n = 30): number[] {
   const r = (i: number) => Math.sin(seed * 0.1 + i * 0.7) * 0.03 + (Math.sin(i * 0.3 + seed) * 0.01);
@@ -22,6 +30,7 @@ function genSparkData(seed: number, n = 30): number[] {
 
 export default function Dashboard() {
   const [tick, setTick] = useState(0);
+  const displayCurrency = useCurrencyStore((s) => s.currency);
   useEffect(() => {
     const i = setInterval(() => setTick(t => t + 1), 3500);
     return () => clearInterval(i);
@@ -38,17 +47,19 @@ export default function Dashboard() {
   const gainBrl = summary?.total_gain_brl ?? 0;
   const investedBrl = summary?.total_invested_brl ?? 0;
   const usdBrl = summary?.usd_to_brl ?? 5.70;
+  const totalDisplay = convertCurrency(totalBrl, "BRL", displayCurrency, usdBrl);
+  const gainDisplay = convertCurrency(gainBrl, "BRL", displayCurrency, usdBrl);
 
   const sortedByReturn = [...holdings].sort((a, b) => b.return_pct - a.return_pct);
   const winners = sortedByReturn.slice(0, 3);
   const losers = [...sortedByReturn].reverse().slice(0, 3);
 
   const allocation = summary?.allocation ?? [];
-  const donutData = allocation.map((a: any) => ({
-    label: a.asset_class === "BR_STOCK" ? "BR Stocks" : a.asset_class === "FII" ? "FIIs" : a.asset_class === "US_STOCK" ? "US Stocks" : "Crypto",
-    value: a.value_brl,
-    pct: a.pct,
-    color: CLASS_COLOR[a.asset_class] ?? "#9ec5fe",
+  const donutData = allocation.map((a: AllocationSummary) => ({
+    label: a.name ?? "Other",
+    value: convertCurrency(a.value ?? a.value_brl ?? 0, "BRL", displayCurrency, usdBrl),
+    pct: a.pct ?? 0,
+    color: a.color ?? "#9ec5fe",
   }));
 
   const sectorMap: Record<string, number> = {};
@@ -72,6 +83,15 @@ export default function Dashboard() {
   const totalCurrency = usdVal + brlVal || 1;
   const usdPct = (usdVal / totalCurrency) * 100;
   const brlPct = (brlVal / totalCurrency) * 100;
+  const displayHistory = history.map((point) => ({
+    ...point,
+    value: convertCurrency(point.value, "BRL", displayCurrency, usdBrl),
+  }));
+  const compactMoney = (value: number) => {
+    const converted = convertCurrency(value, "BRL", displayCurrency, usdBrl);
+    const prefix = displayCurrency === "BRL" ? "R$" : "$";
+    return `${prefix}${(converted / 1000).toFixed(1)}k`;
+  };
 
   const PANEL: React.CSSProperties = {
     background: "#14130f", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 24,
@@ -85,28 +105,28 @@ export default function Dashboard() {
           ...PANEL,
           background: "linear-gradient(135deg, #14130f 0%, #1a1814 100%)",
         }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, flexWrap: "wrap" }}>
             <div>
               <div className="kicker" style={{ marginBottom: 8 }}>
                 Total portfolio · {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
               </div>
-              <h1 style={{ fontFamily: "var(--font-display)", fontSize: 72, lineHeight: 1, letterSpacing: "-0.02em", color: "#f5f1e8", margin: 0 }}>
-                <span style={{ fontSize: 36 }}>R$</span>
-                {isLoading ? "—" : <AnimatedNumber value={totalBrl} fmt={(v) => v.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} />}
+              <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(44px, 7vw, 72px)", lineHeight: 1, color: "#f5f1e8", margin: 0 }}>
+                <span style={{ fontSize: "0.5em" }}>{displayCurrency === "BRL" ? "R$" : "$"}</span>
+                {isLoading ? "—" : <AnimatedNumber value={totalDisplay} fmt={(v) => v.toLocaleString(displayCurrency === "BRL" ? "pt-BR" : "en-US", { maximumFractionDigits: 0 })} />}
               </h1>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
                 <span style={{ color: gainBrl >= 0 ? "#7dd3a8" : "#e07b6c", fontFamily: "var(--font-mono)", fontSize: 13 }}>
-                  {gainBrl >= 0 ? "▲" : "▼"} R${Math.abs(gainBrl).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+                  {gainDisplay >= 0 ? "▲" : "▼"} {formatCurrency(Math.abs(gainDisplay), displayCurrency)}
                 </span>
                 <span style={{ color: "rgba(245,241,232,0.3)" }}>·</span>
                 <span style={{ color: "rgba(245,241,232,0.5)", fontSize: 13 }}>all-time return</span>
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(120px, 1fr))", gap: 20, minWidth: 260 }}>
               {[
-                { label: "Invested capital", value: `R$${(investedBrl / 1000).toFixed(1)}k` },
-                { label: "Unrealized gain", value: `+R$${(gainBrl / 1000).toFixed(1)}k`, color: "#7dd3a8" },
+                { label: "Invested capital", value: compactMoney(investedBrl) },
+                { label: "Unrealized gain", value: `${gainDisplay >= 0 ? "+" : "-"}${compactMoney(Math.abs(gainBrl))}`, color: gainDisplay >= 0 ? "#7dd3a8" : "#e07b6c" },
                 { label: "USD/BRL rate", value: `${usdBrl.toFixed(2)}` },
                 { label: "Holdings", value: String(holdings.length) },
               ].map(stat => (
@@ -122,16 +142,16 @@ export default function Dashboard() {
 
       {/* PERFORMANCE CHART */}
       <Reveal delay={100}>
-        <PortfolioLineChart data={history} />
+        <PortfolioLineChart data={displayHistory} currency={displayCurrency} />
       </Reveal>
 
       {/* ALLOCATION ROW */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(280px, 100%), 1fr))", gap: 16 }}>
         <Reveal delay={150}>
           <section style={PANEL}>
             <div className="kicker" style={{ marginBottom: 4 }}>Allocation</div>
             <h3 style={{ fontFamily: "var(--font-display)", fontSize: 20, margin: "0 0 16px" }}>By asset class</h3>
-            {!isLoading && <DonutChart data={donutData} centerValue={`R$${(totalBrl / 1000).toFixed(0)}k`} />}
+            {!isLoading && <DonutChart data={donutData} centerValue={`${displayCurrency === "BRL" ? "R$" : "$"}${(totalDisplay / 1000).toFixed(0)}k`} />}
           </section>
         </Reveal>
 
@@ -156,7 +176,7 @@ export default function Dashboard() {
                 <div key={c.label}>
                   <div className="kicker">{c.label}</div>
                   <div style={{ fontFamily: "var(--font-display)", fontSize: 24, marginTop: 4 }}>{c.pct.toFixed(1)}%</div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "rgba(245,241,232,0.4)" }}>R${(c.val / 1000).toFixed(1)}k</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "rgba(245,241,232,0.4)" }}>{compactMoney(c.val)}</div>
                 </div>
               ))}
             </div>
@@ -169,12 +189,12 @@ export default function Dashboard() {
       </div>
 
       {/* MOVERS + WATCHLIST */}
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(360px, 100%), 1fr))", gap: 16 }}>
         <Reveal delay={320}>
           <section style={PANEL}>
-            <div className="kicker" style={{ marginBottom: 4 }}>Today's movers</div>
+            <div className="kicker" style={{ marginBottom: 4 }}>Today&apos;s movers</div>
             <h3 style={{ fontFamily: "var(--font-display)", fontSize: 20, margin: "0 0 16px" }}>Best & worst performers</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(220px, 100%), 1fr))", gap: 16 }}>
               {[{ label: "▲ WINNERS", color: "#7dd3a8", items: winners }, { label: "▼ LOSERS", color: "#e07b6c", items: losers }].map(group => (
                 <div key={group.label}>
                   <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.12em", color: group.color, marginBottom: 12 }}>{group.label}</div>
@@ -185,14 +205,14 @@ export default function Dashboard() {
                       <div key={h.ticker} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 600, color: "#c9f76f" }}>{h.ticker}</div>
-                          <div style={{ fontSize: 11, color: "rgba(245,241,232,0.4)" }}>{(h as any).name ?? ""}</div>
+                          <div style={{ fontSize: 11, color: "rgba(245,241,232,0.4)" }}>{h.name ?? ""}</div>
                         </div>
                         <Sparkline data={sparkData} width={60} height={22} color={isUp ? "#7dd3a8" : "#e07b6c"} />
                         <div style={{ textAlign: "right" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                             <TickPulse trigger={tick} color={isUp ? "#7dd3a8" : "#e07b6c"} />
                             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>
-                              {h.currency === "BRL" ? "R$" : "$"}{(h.quantity ? (h.current_value / h.quantity) : 0).toFixed(2)}
+                              {formatCurrency(convertCurrency(h.quantity ? (h.current_value / h.quantity) : 0, h.currency, displayCurrency, usdBrl), displayCurrency)}
                             </span>
                           </div>
                           <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: isUp ? "#7dd3a8" : "#e07b6c" }}>

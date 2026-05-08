@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useCallback, useState, useMemo } from "react";
+import type { CSSProperties } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getHoldings } from "@/lib/api";
 import { Reveal } from "@/components/ui/reveal";
 import { Sparkline } from "@/components/ui/sparkline";
-import { ClassChip, CLASS_COLOR } from "@/components/ui/class-chip";
-import { ScoreBadge } from "@/components/ui/score-badge";
+import { CLASS_COLOR } from "@/components/ui/class-chip";
 import { AnimatedNumber } from "@/components/ui/animated-number";
+import { useCurrencyStore } from "@/lib/currency-store";
+import { convertCurrency, formatCurrency } from "@/lib/formatters";
 import type { AssetClass, Holding } from "@/lib/types";
 
 const TABS: { label: string; value: AssetClass | "ALL" }[] = [
@@ -28,10 +30,6 @@ function formatNum(v: number, decimals = 2): string {
   return v.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
-function formatUSD(v: number): string {
-  return "$" + formatNum(v, 2);
-}
-
 function formatPct(v: number): string {
   return (v * 100).toFixed(2) + "%";
 }
@@ -39,11 +37,18 @@ function formatPct(v: number): string {
 export default function HoldingsPage() {
   const [filter, setFilter] = useState<AssetClass | "ALL">("ALL");
   const [sort, setSort] = useState<{ key: string; dir: number }>({ key: "value", dir: -1 });
+  const displayCurrency = useCurrencyStore((s) => s.currency);
 
   const { data: holdings = [], isLoading } = useQuery({
     queryKey: ["holdings"],
     queryFn: getHoldings,
   });
+
+  const usdBrl = 5.70;
+  const toDisplay = useCallback(
+    (value: number, currency: "BRL" | "USD") => convertCurrency(value, currency, displayCurrency, usdBrl),
+    [displayCurrency, usdBrl]
+  );
 
   const filtered = useMemo(() => {
     let rows = holdings.slice();
@@ -53,11 +58,11 @@ export default function HoldingsPage() {
       let aVal = 0,
         bVal = 0;
       if (sort.key === "value") {
-        aVal = a.current_value || 0;
-        bVal = b.current_value || 0;
+        aVal = toDisplay(a.current_value || 0, a.currency);
+        bVal = toDisplay(b.current_value || 0, b.currency);
       } else if (sort.key === "gain") {
-        aVal = a.total_gain || 0;
-        bVal = b.total_gain || 0;
+        aVal = toDisplay(a.total_gain || 0, a.currency);
+        bVal = toDisplay(b.total_gain || 0, b.currency);
       } else if (sort.key === "return") {
         aVal = a.return_pct || 0;
         bVal = b.return_pct || 0;
@@ -65,10 +70,10 @@ export default function HoldingsPage() {
       return (aVal - bVal) * sort.dir;
     });
     return rows;
-  }, [holdings, filter, sort]);
+  }, [holdings, filter, sort, toDisplay]);
 
-  const totalValue = filtered.reduce((s: number, h: Holding) => s + (h.current_value || 0), 0);
-  const totalGain = filtered.reduce((s: number, h: Holding) => s + (h.total_gain || 0), 0);
+  const totalValue = filtered.reduce((s: number, h: Holding) => s + toDisplay(h.current_value || 0, h.currency), 0);
+  const totalGain = filtered.reduce((s: number, h: Holding) => s + toDisplay(h.total_gain || 0, h.currency), 0);
   const avgReturn = filtered.length > 0 ? filtered.reduce((s: number, h: Holding) => s + (h.return_pct || 0), 0) / filtered.length : 0;
 
   const headers = [
@@ -97,7 +102,7 @@ export default function HoldingsPage() {
           <div style={{ marginBottom: 8, color: "#8892a4", fontSize: 12, fontWeight: 500, letterSpacing: "0.05em" }}>
             Holdings · {filtered.length} positions
           </div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 36, lineHeight: 1.2, letterSpacing: "-0.02em", color: "#f5f1e8", margin: 0 }}>
+          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(30px, 4vw, 36px)", lineHeight: 1.2, color: "#f5f1e8", margin: 0 }}>
             Portfolio breakdown
           </h1>
         </div>
@@ -143,7 +148,7 @@ export default function HoldingsPage() {
               Subset value
             </div>
             <div style={{ color: "#f5f1e8", fontSize: 22, fontWeight: 600, fontFamily: "var(--font-mono)" }}>
-              <AnimatedNumber value={totalValue} fmt={(v) => "$" + v.toLocaleString("en-US", { maximumFractionDigits: 0 })} />
+              <AnimatedNumber value={totalValue} fmt={(v) => formatCurrency(v, displayCurrency)} />
             </div>
           </div>
           <div style={{ ...PANEL, padding: 16 }}>
@@ -179,7 +184,8 @@ export default function HoldingsPage() {
           style={{
             ...PANEL,
             padding: 0,
-            overflow: "hidden",
+            overflowX: "auto",
+            overflowY: "hidden",
           }}
         >
           {isLoading ? (
@@ -187,16 +193,16 @@ export default function HoldingsPage() {
           ) : filtered.length === 0 ? (
             <div style={{ padding: 24, textAlign: "center", color: "#8892a4" }}>No holdings</div>
           ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <table style={{ width: "100%", minWidth: 860, borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.07)", background: "rgba(0,0,0,0.2)" }}>
-                  {headers.map((h, i) => (
+                {headers.map((h) => (
                     <th
                       key={h.key}
                       onClick={() => h.sortable && setSort((s) => ({ key: h.key, dir: s.key === h.key ? -s.dir : -1 }))}
                       style={{
                         padding: "12px 16px",
-                        textAlign: (h.align as any) || "left",
+                        textAlign: (h.align as CSSProperties["textAlign"]) || "left",
                         color: "#8892a4",
                         fontSize: 11,
                         fontWeight: 600,
@@ -275,12 +281,12 @@ export default function HoldingsPage() {
 
                       {/* AVG COST */}
                       <td style={{ padding: "12px 16px", textAlign: "right", color: "#8892a4", fontFamily: "JetBrains Mono, monospace", fontSize: 13 }}>
-                        {h.currency === "USD" ? "$" : "R$"}{formatNum(h.average_cost || 0)}
+                        {formatCurrency(toDisplay(h.average_cost || 0, h.currency), displayCurrency)}
                       </td>
 
                       {/* PRICE */}
                       <td style={{ padding: "12px 16px", textAlign: "right", color: "#f5f1e8", fontFamily: "JetBrains Mono, monospace", fontSize: 13 }}>
-                        {h.currency === "USD" ? "$" : "R$"}{formatNum(h.current_price || 0)}
+                        {formatCurrency(toDisplay(h.current_price || 0, h.currency), displayCurrency)}
                       </td>
 
                       {/* 30D SPARKLINE */}
@@ -290,12 +296,12 @@ export default function HoldingsPage() {
 
                       {/* VALUE */}
                       <td style={{ padding: "12px 16px", textAlign: "right", color: "#f5f1e8", fontFamily: "JetBrains Mono, monospace", fontSize: 13 }}>
-                        {h.currency === "USD" ? "$" : "R$"}{formatNum(h.current_value || 0)}
+                        {formatCurrency(toDisplay(h.current_value || 0, h.currency), displayCurrency)}
                       </td>
 
                       {/* GAIN */}
                       <td style={{ padding: "12px 16px", textAlign: "right", fontFamily: "JetBrains Mono, monospace", fontSize: 13, color: gain >= 0 ? "#7dd3a8" : "#e07b6c" }}>
-                        {gain >= 0 ? "+" : ""}{h.currency === "USD" ? "$" : "R$"}{formatNum(Math.abs(gain))}
+                        {gain >= 0 ? "+" : ""}{formatCurrency(Math.abs(toDisplay(gain, h.currency)), displayCurrency)}
                       </td>
 
                       {/* RETURN */}

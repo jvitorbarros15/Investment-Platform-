@@ -8,7 +8,16 @@ interface Props {
   data: AllocationItem[];
 }
 
-const CustomTooltip = ({ active, payload }: any) => {
+interface TooltipPayload {
+  payload: AllocationItem;
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: TooltipPayload[];
+}
+
+const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (!active || !payload?.length) return null;
   const item = payload[0].payload as AllocationItem;
   return (
@@ -55,8 +64,8 @@ export function AllocationChart({ data }: Props) {
           </ResponsiveContainer>
         </div>
         <div className="flex-1 space-y-2">
-          {data.map((item) => (
-            <div key={item.name} className="flex items-center justify-between gap-4">
+          {data.map((item, i) => (
+            <div key={`${item.name}-${i}`} className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2 min-w-0">
                 <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: item.color }} />
                 <span className="text-xs truncate" style={{ color: "#8892A4" }}>{item.name}</span>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuthStore } from "@/lib/auth-store";
+import { useCurrencyStore } from "@/lib/currency-store";
 
 const NAV = [
   { href: "/",            label: "Dashboard",  icon: "M3 13h6V3H3v10zm0 8h6v-6H3v6zm8 0h10v-10H11v10zm0-18v6h10V3H11z" },
@@ -17,10 +18,11 @@ const DISPLAYED_EMAIL = "admin@invest.local";
 export function Sidebar() {
   const pathname = usePathname();
   const logout = useAuthStore((s) => s.logout);
+  const currency = useCurrencyStore((s) => s.currency);
   const avatarInitials = DISPLAYED_EMAIL.slice(0, 2).toUpperCase();
 
   return (
-    <aside style={{
+    <aside className="app-sidebar" style={{
       width: 232, flexShrink: 0, height: "100vh", position: "sticky", top: 0,
       background: "#0c0b08", borderRight: "1px solid rgba(255,255,255,0.07)",
       display: "flex", flexDirection: "column", padding: "24px 16px",
@@ -40,7 +42,7 @@ export function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+      <nav className="app-sidebar-nav" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
         {NAV.map(item => {
           const active = item.href === "/" ? pathname === "/" : (item.href !== "/" && pathname.startsWith(item.href + "/")) || pathname === item.href;
           return (
@@ -68,7 +70,7 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="app-sidebar-footer" style={{ borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 16, display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ padding: "12px 14px", borderRadius: 10, background: "#14130f", border: "1px solid rgba(255,255,255,0.07)" }}>
           <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(245,241,232,0.5)", marginBottom: 4 }}>Philosophy</div>
           <div style={{ fontSize: 13, fontWeight: 500, color: "#f5f1e8" }}>Dividends + Quality</div>
@@ -87,7 +89,7 @@ export function Sidebar() {
             <div style={{ fontSize: 12, fontWeight: 500, color: "#f5f1e8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {DISPLAYED_EMAIL}
             </div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "rgba(245,241,232,0.4)" }}>BASE · BRL</div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "rgba(245,241,232,0.4)" }}>BASE · {currency}</div>
           </div>
           <button onClick={logout} style={{ fontSize: 11, color: "rgba(245,241,232,0.3)", background: "none", border: "none", cursor: "pointer", padding: 4 }}>
             ⎋
