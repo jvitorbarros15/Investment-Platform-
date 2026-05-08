@@ -5,13 +5,24 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.db.seed import seed_database
 from app.db.session import init_db
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from app.services.price_refresh_service import refresh_all_portfolios, refresh_exchange_rate
 
+
+scheduler = AsyncIOScheduler()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
     await seed_database()
+
+    scheduler.add_job(refresh_all_portfolios, "interval", minutes=15, id="refresh_prices")
+    scheduler.add_job(refresh_exchange_rate, "interval", minutes=15, id="refresh_rate")
+    scheduler.start()
+
     yield
+
+    scheduler.shutdown()
 
 
 app = FastAPI(
