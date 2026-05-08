@@ -68,53 +68,68 @@ async def portfolio_history(
     current_user: User = Depends(get_current_user),
 ):
     """Get historical portfolio values by aggregating PriceSnapshots."""
-    portfolio = await _get_portfolio(current_user, db)
-
-    # Parse period (e.g., "30d" → 30 days)
     try:
-        days = int(period.rstrip("d"))
-    except (ValueError, AttributeError):
-        days = 30
+        portfolio = await _get_portfolio(current_user, db)
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        # Parse period (e.g., "30d" → 30 days)
+        try:
+            days = int(period.rstrip("d"))
+        except (ValueError, AttributeError):
+            days = 30
 
-    # Get all snapshots for holdings in this portfolio after cutoff date
-    result = await db.execute(
-        select(PriceSnapshot)
-        .join(Holding, PriceSnapshot.asset_id == Holding.asset_id)
-        .where(and_(Holding.portfolio_id == portfolio.id, PriceSnapshot.timestamp >= cutoff))
-        .order_by(PriceSnapshot.timestamp)
-    )
-    snapshots = result.scalars().all()
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
-    if not snapshots:
-        return []
-
-    # Aggregate by date
-    from collections import defaultdict
-    daily = defaultdict(float)
-    rate = get_usd_to_brl()
-
-    for snap in snapshots:
-        # Find the holding for this asset
-        holding_result = await db.execute(
-            select(Holding).where(
-                and_(Holding.asset_id == snap.asset_id, Holding.portfolio_id == portfolio.id)
-            )
+        # Fetch all holdings for this portfolio (once, not in loop)
+        holdings_result = await db.execute(
+            select(Holding).where(Holding.portfolio_id == portfolio.id)
         )
-        holding = holding_result.scalar_one_or_none()
-        if not holding:
-            continue
+        holdings_map = {h.asset_id: h for h in holdings_result.scalars().all()}
 
-        # Calculate value in BRL
-        date_key = snap.timestamp.strftime("%Y-%m-%d")
-        multiplier = rate if snap.currency == "USD" else 1.0
-        daily[date_key] += snap.close_price * holding.quantity * multiplier
+        if not holdings_map:
+            return []
 
-    # Return sorted by date
-    result_list = [
-        {"date": date, "value": round(value, 2)}
-        for date, value in sorted(daily.items())
-    ]
+        # Get all snapshots for this portfolio's assets after cutoff
+        result = await db.execute(
+            select(PriceSnapshot)
+            .where(and_(
+                PriceSnapshot.asset_id.in_(list(holdings_map.keys())),
+                PriceSnapshot.timestamp >= cutoff
+            ))
+            .order_by(PriceSnapshot.timestamp)
+        )
+        snapshots = result.scalars().all()
 
-    return result_list if result_list else []
+        if not snapshots:
+            return []
+
+        # Aggregate by date
+        from collections import defaultdict
+        daily = defaultdict(float)
+        rate = get_usd_to_brl()
+
+        # Validate exchange rate
+        if not isinstance(rate, (int, float)) or rate <= 0:
+            rate = 5.70  # Fallback to default if invalid
+
+        for snap in snapshots:
+            holding = holdings_map.get(snap.asset_id)
+            if not holding:
+                continue
+
+            date_key = snap.timestamp.strftime("%Y-%m-%d")
+            multiplier = rate if snap.currency == "USD" else 1.0
+            daily[date_key] += snap.close_price * holding.quantity * multiplier
+
+        # Return sorted by date
+        result_list = [
+            {"date": date, "value": round(value, 2)}
+            for date, value in sorted(daily.items())
+        ]
+
+        return result_list if result_list else []
+
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error retrieving portfolio history: {e}")
+        return []
