@@ -23,6 +23,12 @@ export function formatCurrency(value: number, currency: "BRL" | "USD"): string {
   return currency === "BRL" ? formatBRL(value) : formatUSD(value);
 }
 
+export function convertCurrency(value: number, from: "BRL" | "USD", to: "BRL" | "USD", usdToBrl: number): number {
+  if (from === to) return value;
+  if (to === "BRL") return value * usdToBrl;
+  return value / usdToBrl;
+}
+
 export function getReturnColor(pct: number): string {
   if (pct > 0) return "text-gain";
   if (pct < 0) return "text-loss";

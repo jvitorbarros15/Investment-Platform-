@@ -8,7 +8,17 @@ interface DataPoint {
   value: number;
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface TooltipPayload {
+  value: number;
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: TooltipPayload[];
+  label?: string;
+}
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   if (!active || !payload?.length) return null;
   return (
     <div

@@ -1,59 +1,41 @@
 "use client";
 
-import { useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { Sidebar } from "./Sidebar";
 import { useAuthStore } from "@/lib/auth-store";
-import { LogOut } from "lucide-react";
-
-function LogoutButton() {
-  const logout = useAuthStore((s) => s.logout);
-  const router = useRouter();
-
-  const handleLogout = () => {
-    logout();
-    router.replace("/login");
-  };
-
-  return (
-    <button
-      onClick={handleLogout}
-      className="p-1.5 rounded transition-colors"
-      title="Sign out"
-      style={{ color: "#4A5568" }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#F43F5E"; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "#4A5568"; }}
-    >
-      <LogOut size={13} />
-    </button>
-  );
-}
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { Sidebar } from "./Sidebar";
+import { Topbar } from "./Topbar";
 
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
-  const pathname = usePathname();
   const router = useRouter();
-  const isLoginPage = pathname === "/login";
 
   useEffect(() => {
-    if (!token && !isLoginPage) router.replace("/login");
-    if (token && isLoginPage) router.replace("/");
-  }, [token, isLoginPage, router]);
+    if (!token && !window.location.pathname.startsWith("/login")) {
+      router.push("/login");
+    }
+  }, [token, router]);
 
-  if (!token && !isLoginPage) return null;
-
-  if (isLoginPage) {
-    return <div className="w-full">{children}</div>;
+  if (!token) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#0c0b08" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 24, fontFamily: "var(--font-display)", color: "#f5f1e8", marginBottom: 16 }}>MERIDIAN</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "rgba(245,241,232,0.4)", animation: "fadeIn 1s" }}>Loading…</div>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <>
-      <Sidebar logoutSlot={<LogoutButton />} />
-      <main className="flex-1 ml-60 min-h-screen overflow-y-auto relative z-10">
-        <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="app-shell">
+      <Sidebar />
+      <div className="app-content">
+        <Topbar />
+        <main className="app-main">
           {children}
-        </div>
-      </main>
-    </>
+        </main>
+      </div>
+    </div>
   );
 }
