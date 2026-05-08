@@ -82,7 +82,7 @@ export default function PortfolioPage() {
         <table className="w-full">
           <thead>
             <tr style={{ borderBottom: "1px solid #1E2330", background: "#0D0F14" }}>
-              {["Ticker", "Name", "Class", "Current Value", "Total Gain", "Return", "Weight (%)"].map((h, i) => (
+              {["Ticker", "Name", "Class", "Qty", "Live Price", "Current Value", "Total Gain", "Return", "Weight (%)"].map((h, i) => (
                 <th
                   key={h}
                   className={`px-5 py-3 text-xs uppercase tracking-widest ${i >= 3 ? "text-right" : "text-left"}`}
@@ -95,7 +95,7 @@ export default function PortfolioPage() {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={7} className="px-5 py-10 text-center text-xs" style={{ color: "#4A5568", fontFamily: "JetBrains Mono" }}>Loading...</td></tr>
+              <tr><td colSpan={9} className="px-5 py-10 text-center text-xs" style={{ color: "#4A5568", fontFamily: "JetBrains Mono" }}>Loading...</td></tr>
             ) : filtered.map((h, i) => (
               <tr
                 key={h.ticker}
@@ -120,6 +120,16 @@ export default function PortfolioPage() {
                     }}
                   >
                     {assetClassLabel(h.asset_class)}
+                  </span>
+                </td>
+                <td className="px-5 py-3.5 text-right">
+                  <span className="text-sm" style={{ color: "#8892A4", fontFamily: "JetBrains Mono, monospace" }}>
+                    {(h.quantity ?? 0).toLocaleString("en-US", { maximumFractionDigits: h.asset_class === "CRYPTO" ? 6 : 2 })}
+                  </span>
+                </td>
+                <td className="px-5 py-3.5 text-right">
+                  <span className="text-sm" style={{ color: "#F0F2F7", fontFamily: "JetBrains Mono, monospace" }}>
+                    {h.currency === "BRL" ? formatBRL(h.current_price ?? 0) : formatUSD(h.current_price ?? 0)}
                   </span>
                 </td>
                 <td className="px-5 py-3.5 text-right">

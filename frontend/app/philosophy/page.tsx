@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Save } from "lucide-react";
 import { getPhilosophy, updatePhilosophy } from "@/lib/api";
@@ -61,8 +61,7 @@ function weightsToPayload(w: Weights) {
 
 export default function PhilosophyPage() {
   const queryClient = useQueryClient();
-  const [weights, setWeights] = useState<Weights>(DEFAULTS);
-  const [profileId, setProfileId] = useState<string | null>(null);
+  const [draftWeights, setDraftWeights] = useState<Weights | null>(null);
   const [saved, setSaved] = useState(false);
 
   const { data: profiles, isLoading } = useQuery<PhilosophyProfile[]>({
@@ -70,17 +69,15 @@ export default function PhilosophyPage() {
     queryFn: getPhilosophy,
   });
 
-  useEffect(() => {
-    if (profiles && profiles.length > 0) {
-      setProfileId(profiles[0].id);
-      setWeights(profileToWeights(profiles[0]));
-    }
-  }, [profiles]);
+  const profile = profiles?.[0] ?? null;
+  const profileId = profile?.id ?? null;
+  const weights = draftWeights ?? (profile ? profileToWeights(profile) : DEFAULTS);
 
   const saveMutation = useMutation({
     mutationFn: () => updatePhilosophy(profileId!, weightsToPayload(weights)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["philosophy"] });
+      setDraftWeights(null);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     },
@@ -136,7 +133,7 @@ export default function PhilosophyPage() {
                 <div className="relative">
                   <input
                     type="range" min={0} max={60} step={1} value={weights[key]}
-                    onChange={(e) => setWeights({ ...weights, [key]: parseInt(e.target.value) })}
+                    onChange={(e) => setDraftWeights({ ...weights, [key]: parseInt(e.target.value) })}
                     className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
                     style={{
                       background: `linear-gradient(to right, #C9963C ${(weights[key] / 60) * 100}%, #1E2330 ${(weights[key] / 60) * 100}%)`,

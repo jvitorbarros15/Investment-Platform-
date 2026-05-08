@@ -10,19 +10,46 @@ class YahooFinanceProvider(MarketDataProvider):
     async def get_quote(self, symbol: str) -> dict:
         try:
             ticker = await asyncio.to_thread(yf.Ticker, symbol)
-            info = await asyncio.to_thread(lambda: ticker.info)
+            info = {}
+            fast_info = {}
 
-            price = (
-                info.get("currentPrice")
-                or info.get("regularMarketPrice")
-                or info.get("previousClose")
-                or 0.0
+            try:
+                fast_info = await asyncio.to_thread(lambda: dict(ticker.fast_info))
+            except Exception:
+                fast_info = {}
+
+            price = _first_number(
+                fast_info,
+                "last_price",
+                "lastPrice",
+                "regularMarketPrice",
+                "previousClose",
             )
+
+            if not price:
+                try:
+                    info = await asyncio.to_thread(lambda: ticker.info)
+                    price = _first_number(
+                        info,
+                        "currentPrice",
+                        "regularMarketPrice",
+                        "previousClose",
+                    )
+                except Exception:
+                    info = {}
+
+            if not price:
+                hist = await asyncio.to_thread(lambda: ticker.history(period="5d"))
+                if not hist.empty:
+                    price = float(hist["Close"].dropna().iloc[-1])
+
+            if not price:
+                return {}
 
             return {
                 "symbol": symbol,
                 "price": float(price),
-                "currency": info.get("currency", "USD"),
+                "currency": info.get("currency") or fast_info.get("currency", "USD"),
                 "market_cap": info.get("marketCap"),
                 "dividend_yield": info.get("dividendYield"),
                 "pe_ratio": info.get("trailingPE"),
@@ -52,3 +79,17 @@ class YahooFinanceProvider(MarketDataProvider):
             return result
         except Exception:
             return []
+
+
+def _first_number(data: dict, *keys: str) -> float:
+    for key in keys:
+        value = data.get(key)
+        if value is None:
+            continue
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            continue
+        if number > 0:
+            return number
+    return 0.0

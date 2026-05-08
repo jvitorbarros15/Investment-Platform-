@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AllocationChart } from "@/components/dashboard/AllocationChart";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { PerformanceChart } from "@/components/charts/PerformanceChart";
@@ -16,35 +16,40 @@ function withWeights(holdings: Holding[]): (Holding & { weight_in_class: number 
 }
 
 export default function Dashboard() {
+  const queryClient = useQueryClient();
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const didAutoRefresh = useRef(false);
+  const [lastRefreshMessage, setLastRefreshMessage] = useState<string | null>(null);
+  const {
+    mutate: refreshLivePrices,
+    isPending: isRefreshing,
+    isError: refreshFailed,
+  } = useMutation({
+    mutationFn: refreshPrices,
+    onSuccess: async (result) => {
+      setLastRefreshMessage(
+        result.updated > 0
+          ? `${result.message}. Portfolio data reloaded from the API.`
+          : `Live provider returned no new prices for ${result.attempted} holdings. Showing latest saved API values.`
+      );
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["portfolio-summary"] }),
+        queryClient.invalidateQueries({ queryKey: ["holdings"] }),
+        queryClient.invalidateQueries({ queryKey: ["portfolio-history"] }),
+      ]);
+    },
+  });
 
   // Auto-refresh prices on component mount
   useEffect(() => {
-    const doRefresh = async () => {
-      setIsRefreshing(true);
-      try {
-        await refreshPrices();
-      } catch (error) {
-        console.error("Auto-refresh failed:", error);
-      } finally {
-        setIsRefreshing(false);
-      }
-    };
-
-    doRefresh();
-  }, []);
+    if (didAutoRefresh.current) return;
+    didAutoRefresh.current = true;
+    refreshLivePrices();
+  }, [refreshLivePrices]);
 
   const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await refreshPrices();
-    } catch (error) {
-      console.error("Manual refresh failed:", error);
-    } finally {
-      setIsRefreshing(false);
-    }
+    refreshLivePrices();
   };
 
   const { data: summary, isLoading: sl } = useQuery({ queryKey: ["portfolio-summary"], queryFn: getPortfolioSummary });
@@ -94,9 +99,14 @@ export default function Dashboard() {
             cursor: isRefreshing ? "not-allowed" : "pointer",
           }}
         >
-          {isRefreshing ? "Refreshing..." : "↻ Refresh"}
+          {isRefreshing ? "Refreshing..." : "Refresh live prices"}
         </button>
       </div>
+      {(lastRefreshMessage || refreshFailed) && (
+        <div className="rounded-md border px-3 py-2 text-xs" style={{ background: "#111318", borderColor: "#1E2330", color: refreshFailed ? "#F43F5E" : "#8892A4", fontFamily: "JetBrains Mono, monospace" }}>
+          {refreshFailed ? "Live market refresh failed. Showing last saved API values." : lastRefreshMessage}
+        </div>
+      )}
 
       {/* KPI Row */}
       <div className="grid grid-cols-4 gap-4">

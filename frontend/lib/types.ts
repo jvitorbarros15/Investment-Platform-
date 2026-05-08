@@ -13,6 +13,8 @@ export interface Holding {
   sector?: string;
   weight_in_class?: number;
   quantity?: number;
+  average_cost?: number;
+  current_price?: number;
 }
 
 export interface AllocationItem {
