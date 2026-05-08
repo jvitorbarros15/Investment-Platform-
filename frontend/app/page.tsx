@@ -1,191 +1,245 @@
 "use client";
 
-import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AllocationChart } from "@/components/dashboard/AllocationChart";
-import { KpiCard } from "@/components/dashboard/KpiCard";
-import { PerformanceChart } from "@/components/charts/PerformanceChart";
-import { formatBRL, formatUSD, formatPct, getReturnColor, assetClassLabel } from "@/lib/formatters";
-import { getPortfolioSummary, getHoldings, getPortfolioHistory, refreshPrices } from "@/lib/api";
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getPortfolioSummary, getHoldings, getPortfolioHistory } from "@/lib/api";
+import { AnimatedNumber } from "@/components/ui/animated-number";
+import { Reveal } from "@/components/ui/reveal";
+import { TickPulse } from "@/components/ui/tick-pulse";
+import { Sparkline } from "@/components/ui/sparkline";
+import { PortfolioLineChart } from "@/components/charts/PortfolioLineChart";
+import { DonutChart } from "@/components/charts/DonutChart";
+import { BarList } from "@/components/charts/BarList";
+import { useCurrencyStore } from "@/lib/currency-store";
+import { convertCurrency, formatCurrency } from "@/lib/formatters";
 import type { Holding } from "@/lib/types";
 
-function withWeights(holdings: Holding[]): (Holding & { weight_in_class: number })[] {
-  const totals: Record<string, number> = {};
-  for (const h of holdings) totals[h.asset_class] = (totals[h.asset_class] || 0) + h.current_value;
-  return holdings.map((h) => ({ ...h, weight_in_class: totals[h.asset_class] > 0 ? (h.current_value / totals[h.asset_class]) * 100 : 0 }));
+interface AllocationSummary {
+  name?: string;
+  value?: number;
+  value_brl?: number;
+  pct?: number;
+  color?: string;
+}
+
+function genSparkData(seed: number, n = 30): number[] {
+  const r = (i: number) => Math.sin(seed * 0.1 + i * 0.7) * 0.03 + (Math.sin(i * 0.3 + seed) * 0.01);
+  let v = 100;
+  return Array.from({ length: n }, (_, i) => { v = v * (1 + r(i)); return v; });
 }
 
 export default function Dashboard() {
-  const queryClient = useQueryClient();
-  const today = new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-
-  const [lastRefreshMessage, setLastRefreshMessage] = useState<string | null>(null);
-  const {
-    mutate: refreshLivePrices,
-    isPending: isRefreshing,
-    isError: refreshFailed,
-  } = useMutation({
-    mutationFn: refreshPrices,
-    onSuccess: async (result) => {
-      setLastRefreshMessage(
-        result.updated > 0
-          ? `${result.message}. Portfolio data reloaded from the API.`
-          : `Live provider returned no new prices for ${result.attempted} holdings. Showing latest saved API values.`
-      );
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["portfolio-summary"] }),
-        queryClient.invalidateQueries({ queryKey: ["holdings"] }),
-        queryClient.invalidateQueries({ queryKey: ["portfolio-history"] }),
-      ]);
-    },
-  });
-
-  const handleRefresh = async () => {
-    refreshLivePrices(false);
-  };
+  const [tick, setTick] = useState(0);
+  const displayCurrency = useCurrencyStore((s) => s.currency);
+  useEffect(() => {
+    const i = setInterval(() => setTick(t => t + 1), 3500);
+    return () => clearInterval(i);
+  }, []);
 
   const { data: summary, isLoading: sl } = useQuery({ queryKey: ["portfolio-summary"], queryFn: getPortfolioSummary });
-  const { data: rawHoldings = [], isLoading: hl } = useQuery({ queryKey: ["holdings"], queryFn: getHoldings });
-  const { data: history = [], isLoading: histLoading } = useQuery({
-    queryKey: ["portfolio-history"],
-    queryFn: () => getPortfolioHistory("30d"),
-    enabled: !!summary,
-  });
+  const { data: holdings = [], isLoading: hl } = useQuery({ queryKey: ["holdings"], queryFn: getHoldings });
+  const { data: history = [] } = useQuery({ queryKey: ["portfolio-history"], queryFn: () => getPortfolioHistory("30d"), enabled: !!summary });
 
-  const holdings = withWeights(rawHoldings);
-  const isLoading = sl || hl || histLoading;
+  const isLoading = sl || hl;
+  const totalBrl = summary?.total_value_brl ?? 0;
+  const gainBrl = summary?.total_gain_brl ?? 0;
+  const investedBrl = summary?.total_invested_brl ?? 0;
+  const usdBrl = summary?.usd_to_brl ?? 5.70;
+  const totalDisplay = convertCurrency(totalBrl, "BRL", displayCurrency, usdBrl);
+  const gainDisplay = convertCurrency(gainBrl, "BRL", displayCurrency, usdBrl);
 
-  const brStocks = holdings.filter((h) => h.asset_class === "BR_STOCK");
-  const fiis = holdings.filter((h) => h.asset_class === "FII");
-  const usStocks = holdings.filter((h) => h.asset_class === "US_STOCK");
-  const crypto = holdings.filter((h) => h.asset_class === "CRYPTO");
+  const sortedByReturn = [...holdings].sort((a, b) => b.return_pct - a.return_pct);
+  const winners = sortedByReturn.slice(0, 3);
+  const losers = [...sortedByReturn].reverse().slice(0, 3);
 
-  const brTotal = brStocks.reduce((s, h) => s + h.current_value, 0);
-  const fiiTotal = fiis.reduce((s, h) => s + h.current_value, 0);
-  const usTotal = usStocks.reduce((s, h) => s + h.current_value, 0);
-  const cryptoTotal = crypto.reduce((s, h) => s + h.current_value, 0);
+  const allocation = summary?.allocation ?? [];
+  const donutData = allocation.map((a: AllocationSummary) => ({
+    label: a.name ?? "Other",
+    value: convertCurrency(a.value ?? a.value_brl ?? 0, "BRL", displayCurrency, usdBrl),
+    pct: a.pct ?? 0,
+    color: a.color ?? "#9ec5fe",
+  }));
 
-  const top5 = [...holdings].sort((a, b) => b.current_value - a.current_value).slice(0, 6);
+  const sectorMap: Record<string, number> = {};
+  for (const h of holdings) {
+    const s: string = h.sector ?? "Other";
+    sectorMap[s] = (sectorMap[s] ?? 0) + h.current_value;
+  }
+  const totalVal = Object.values(sectorMap).reduce((s: number, v: number) => s + v, 0) || 1;
+  const sectorBars = Object.entries(sectorMap)
+    .sort((a, b) => b[1] - a[1]).slice(0, 6)
+    .map(([label, value], i) => ({
+      label,
+      value: (value / totalVal) * 100,
+      color: ["#c9f76f", "#7dd3a8", "#f0c674", "#e89b7c", "#9ec5fe", "#cfa6f0"][i],
+    }));
+
+  const usdHoldings = holdings.filter((h: Holding) => h.currency === "USD");
+  const brlHoldings = holdings.filter((h: Holding) => h.currency === "BRL");
+  const usdVal = usdHoldings.reduce((s: number, h: Holding) => s + h.current_value * usdBrl, 0);
+  const brlVal = brlHoldings.reduce((s: number, h: Holding) => s + h.current_value, 0);
+  const totalCurrency = usdVal + brlVal || 1;
+  const usdPct = (usdVal / totalCurrency) * 100;
+  const brlPct = (brlVal / totalCurrency) * 100;
+  const displayHistory = history.map((point) => ({
+    ...point,
+    value: convertCurrency(point.value, "BRL", displayCurrency, usdBrl),
+  }));
+  const compactMoney = (value: number) => {
+    const converted = convertCurrency(value, "BRL", displayCurrency, usdBrl);
+    const prefix = displayCurrency === "BRL" ? "R$" : "$";
+    return `${prefix}${(converted / 1000).toFixed(1)}k`;
+  };
+
+  const PANEL: React.CSSProperties = {
+    background: "#14130f", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: 24,
+  };
 
   return (
-    <div className="space-y-8" style={{ animation: "fadeIn 0.5s ease-out" }}>
-      {/* Header with refresh button */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold" style={{ fontFamily: "Syne, sans-serif", color: "#F0F2F7" }}>
-            Good morning, <span style={{ color: "#C9963C" }}>Joao</span>
-          </h1>
-          <p className="text-sm mt-0.5" style={{ color: "#4A5568", fontFamily: "JetBrains Mono, monospace" }}>
-            {today}
-          </p>
-        </div>
-        <button
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className="px-3 py-1.5 rounded text-sm transition-all"
-          style={{
-            background: isRefreshing ? "#161A23" : "#C9963C",
-            color: "#F0F2F7",
-            opacity: isRefreshing ? 0.6 : 1,
-            fontFamily: "JetBrains Mono, monospace",
-            cursor: isRefreshing ? "not-allowed" : "pointer",
-          }}
-        >
-          {isRefreshing ? "Refreshing..." : "Refresh live prices"}
-        </button>
-      </div>
-      {(lastRefreshMessage || refreshFailed) && (
-        <div className="rounded-md border px-3 py-2 text-xs" style={{ background: "#111318", borderColor: "#1E2330", color: refreshFailed ? "#F43F5E" : "#8892A4", fontFamily: "JetBrains Mono, monospace" }}>
-          {refreshFailed ? "Live market refresh failed. Showing last saved API values." : lastRefreshMessage}
-        </div>
-      )}
-
-      {/* KPI Row */}
-      <div className="grid grid-cols-4 gap-4">
-        <KpiCard label="Total Portfolio" value={isLoading ? "—" : formatBRL(summary?.total_value_brl ?? 0)} subtitle="Consolidated value" subtitleColor="#8892A4" />
-        <KpiCard label="Total Return" value={isLoading ? "—" : formatBRL(summary?.total_gain_brl ?? 0)} subtitle={isLoading ? "—" : `${formatPct(summary?.total_return_pct ?? 0)} on invested`} trend={!isLoading && (summary?.total_gain_brl ?? 0) >= 0 ? "up" : "down"} />
-        <KpiCard label="Total Invested" value={isLoading ? "—" : formatBRL(summary?.total_invested_brl ?? 0)} subtitle="Cost basis" subtitleColor="#8892A4" />
-        <KpiCard label="USD/BRL Exchange" value={isLoading ? "—" : `R$ ${(summary?.usd_to_brl ?? 0).toFixed(2)}`} subtitle="Reference" subtitleColor="#8892A4" />
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-5 gap-4">
-        <div className="col-span-3"><PerformanceChart data={history} /></div>
-        <div className="col-span-2"><AllocationChart data={summary?.allocation ?? []} /></div>
-      </div>
-
-      {/* Market Segments */}
-      <div className="grid grid-cols-4 gap-4">
-        {[
-          { label: "BR Stocks", color: "#C9963C", total: brTotal, count: brStocks.length, currency: "BRL" as const },
-          { label: "FIIs", color: "#3B82F6", total: fiiTotal, count: fiis.length, currency: "BRL" as const },
-          { label: "US Stocks", color: "#8B5CF6", total: usTotal, count: usStocks.length, currency: "USD" as const },
-          { label: "Crypto", color: "#10B981", total: cryptoTotal, count: crypto.length, currency: "USD" as const },
-        ].map((seg) => (
-          <div key={seg.label} className="rounded-lg p-4 border" style={{ background: "#111318", borderColor: "#1E2330" }}>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-2 h-2 rounded-full" style={{ background: seg.color }} />
-              <span className="text-xs uppercase tracking-widest" style={{ color: seg.color, fontFamily: "Syne" }}>{seg.label}</span>
-            </div>
-            <p className="text-lg font-bold" style={{ color: "#F0F2F7", fontFamily: "JetBrains Mono" }}>
-              {isLoading ? "—" : seg.currency === "BRL" ? formatBRL(seg.total) : formatUSD(seg.total)}
-            </p>
-            <p className="text-xs mt-1" style={{ color: "#4A5568", fontFamily: "JetBrains Mono" }}>{seg.count} assets</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Holdings Table + Gainers/Losers */}
-      <div className="grid grid-cols-5 gap-4">
-        <div className="col-span-3 rounded-lg border overflow-hidden" style={{ background: "#111318", borderColor: "#1E2330" }}>
-          <div className="px-5 py-4 border-b" style={{ borderColor: "#1E2330" }}>
-            <h3 className="text-sm font-semibold uppercase tracking-widest" style={{ color: "#C9963C", fontFamily: "Syne" }}>Top Holdings</h3>
-          </div>
-          <table className="w-full">
-            <thead>
-              <tr style={{ borderBottom: "1px solid #1E2330" }}>
-                {["Ticker", "Class", "Value", "Return"].map((h, i) => (
-                  <th key={h} className={`px-5 py-2.5 text-xs uppercase tracking-widest ${i >= 2 ? "text-right" : "text-left"}`} style={{ color: "#4A5568", fontFamily: "JetBrains Mono" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={4} className="px-5 py-8 text-center text-xs" style={{ color: "#4A5568", fontFamily: "JetBrains Mono" }}>Loading...</td></tr>
-              ) : top5.map((h, i) => (
-                <tr key={h.ticker} style={{ borderBottom: i < top5.length - 1 ? "1px solid #161A23" : "none" }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#161A23"; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
-                  <td className="px-5 py-3"><span className="text-sm font-bold" style={{ color: "#C9963C", fontFamily: "JetBrains Mono" }}>{h.ticker}</span></td>
-                  <td className="px-5 py-3"><span className="text-xs px-2 py-0.5 rounded border" style={{ color: "#8892A4", borderColor: "#1E2330", fontFamily: "JetBrains Mono" }}>{assetClassLabel(h.asset_class)}</span></td>
-                  <td className="px-5 py-3 text-right"><span className="text-sm" style={{ color: "#F0F2F7", fontFamily: "JetBrains Mono" }}>{h.currency === "BRL" ? formatBRL(h.current_value) : formatUSD(h.current_value)}</span></td>
-                  <td className="px-5 py-3 text-right"><span className={`text-sm font-medium ${getReturnColor(h.return_pct)}`} style={{ fontFamily: "JetBrains Mono" }}>{formatPct(h.return_pct)}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="col-span-2 space-y-4">
-          {[
-            { title: "▲ Top Gainers", color: "#10B981", items: summary?.top_gainers ?? [] },
-            { title: "▼ Top Losers", color: "#F43F5E", items: summary?.top_losers ?? [] },
-          ].map((group) => (
-            <div key={group.title} className="rounded-lg border overflow-hidden" style={{ background: "#111318", borderColor: "#1E2330" }}>
-              <div className="px-4 py-3 border-b" style={{ borderColor: "#1E2330" }}>
-                <h3 className="text-xs font-semibold uppercase tracking-widest" style={{ color: group.color, fontFamily: "Syne" }}>{group.title}</h3>
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* HERO */}
+      <Reveal>
+        <section style={{
+          ...PANEL,
+          background: "linear-gradient(135deg, #14130f 0%, #1a1814 100%)",
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, flexWrap: "wrap" }}>
+            <div>
+              <div className="kicker" style={{ marginBottom: 8 }}>
+                Total portfolio · {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
               </div>
-              {isLoading ? (
-                <div className="px-4 py-4 text-xs text-center" style={{ color: "#4A5568", fontFamily: "JetBrains Mono" }}>Loading...</div>
-              ) : group.items.map((h: typeof summary.top_gainers[0]) => (
-                <div key={h.ticker} className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: "1px solid #161A23" }}>
-                  <span className="text-sm font-bold" style={{ color: "#C9963C", fontFamily: "JetBrains Mono" }}>{h.ticker}</span>
-                  <span className={`text-sm font-medium ${getReturnColor(h.return_pct)}`} style={{ fontFamily: "JetBrains Mono" }}>{formatPct(h.return_pct)}</span>
+              <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(44px, 7vw, 72px)", lineHeight: 1, color: "#f5f1e8", margin: 0 }}>
+                <span style={{ fontSize: "0.5em" }}>{displayCurrency === "BRL" ? "R$" : "$"}</span>
+                {isLoading ? "—" : <AnimatedNumber value={totalDisplay} fmt={(v) => v.toLocaleString(displayCurrency === "BRL" ? "pt-BR" : "en-US", { maximumFractionDigits: 0 })} />}
+              </h1>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                <span style={{ color: gainBrl >= 0 ? "#7dd3a8" : "#e07b6c", fontFamily: "var(--font-mono)", fontSize: 13 }}>
+                  {gainDisplay >= 0 ? "▲" : "▼"} {formatCurrency(Math.abs(gainDisplay), displayCurrency)}
+                </span>
+                <span style={{ color: "rgba(245,241,232,0.3)" }}>·</span>
+                <span style={{ color: "rgba(245,241,232,0.5)", fontSize: 13 }}>all-time return</span>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(120px, 1fr))", gap: 20, minWidth: 260 }}>
+              {[
+                { label: "Invested capital", value: compactMoney(investedBrl) },
+                { label: "Unrealized gain", value: `${gainDisplay >= 0 ? "+" : "-"}${compactMoney(Math.abs(gainBrl))}`, color: gainDisplay >= 0 ? "#7dd3a8" : "#e07b6c" },
+                { label: "USD/BRL rate", value: `${usdBrl.toFixed(2)}` },
+                { label: "Holdings", value: String(holdings.length) },
+              ].map(stat => (
+                <div key={stat.label}>
+                  <div className="kicker" style={{ marginBottom: 4 }}>{stat.label}</div>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: 22, color: stat.color ?? "#f5f1e8" }}>{isLoading ? "—" : stat.value}</div>
                 </div>
               ))}
             </div>
-          ))}
-        </div>
+          </div>
+        </section>
+      </Reveal>
+
+      {/* PERFORMANCE CHART */}
+      <Reveal delay={100}>
+        <PortfolioLineChart data={displayHistory} currency={displayCurrency} />
+      </Reveal>
+
+      {/* ALLOCATION ROW */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(280px, 100%), 1fr))", gap: 16 }}>
+        <Reveal delay={150}>
+          <section style={PANEL}>
+            <div className="kicker" style={{ marginBottom: 4 }}>Allocation</div>
+            <h3 style={{ fontFamily: "var(--font-display)", fontSize: 20, margin: "0 0 16px" }}>By asset class</h3>
+            {!isLoading && <DonutChart data={donutData} centerValue={`${displayCurrency === "BRL" ? "R$" : "$"}${(totalDisplay / 1000).toFixed(0)}k`} />}
+          </section>
+        </Reveal>
+
+        <Reveal delay={210}>
+          <section style={PANEL}>
+            <div className="kicker" style={{ marginBottom: 4 }}>Allocation</div>
+            <h3 style={{ fontFamily: "var(--font-display)", fontSize: 20, margin: "0 0 16px" }}>By sector</h3>
+            <BarList data={sectorBars} />
+          </section>
+        </Reveal>
+
+        <Reveal delay={270}>
+          <section style={PANEL}>
+            <div className="kicker" style={{ marginBottom: 4 }}>Currency exposure</div>
+            <h3 style={{ fontFamily: "var(--font-display)", fontSize: 20, margin: "0 0 16px" }}>USD vs BRL</h3>
+            <div style={{ height: 14, borderRadius: 8, display: "flex", overflow: "hidden", background: "rgba(255,255,255,0.05)", marginBottom: 16 }}>
+              <div style={{ width: `${usdPct}%`, background: "#7dd3a8", transition: "width 0.8s" }} />
+              <div style={{ width: `${brlPct}%`, background: "#f0c674", transition: "width 0.8s" }} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              {[{ label: "USD ASSETS", pct: usdPct, val: usdVal }, { label: "BRL ASSETS", pct: brlPct, val: brlVal }].map(c => (
+                <div key={c.label}>
+                  <div className="kicker">{c.label}</div>
+                  <div style={{ fontFamily: "var(--font-display)", fontSize: 24, marginTop: 4 }}>{c.pct.toFixed(1)}%</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "rgba(245,241,232,0.4)" }}>{compactMoney(c.val)}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+              <span style={{ color: "rgba(245,241,232,0.4)" }}>FX rate · USD/BRL</span>
+              <span style={{ fontFamily: "var(--font-mono)", color: "#f5f1e8" }}>{usdBrl.toFixed(2)}</span>
+            </div>
+          </section>
+        </Reveal>
+      </div>
+
+      {/* MOVERS + WATCHLIST */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(360px, 100%), 1fr))", gap: 16 }}>
+        <Reveal delay={320}>
+          <section style={PANEL}>
+            <div className="kicker" style={{ marginBottom: 4 }}>Today&apos;s movers</div>
+            <h3 style={{ fontFamily: "var(--font-display)", fontSize: 20, margin: "0 0 16px" }}>Best & worst performers</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(220px, 100%), 1fr))", gap: 16 }}>
+              {[{ label: "▲ WINNERS", color: "#7dd3a8", items: winners }, { label: "▼ LOSERS", color: "#e07b6c", items: losers }].map(group => (
+                <div key={group.label}>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.12em", color: group.color, marginBottom: 12 }}>{group.label}</div>
+                  {group.items.map((h: Holding) => {
+                    const sparkData = genSparkData(h.ticker.charCodeAt(0));
+                    const isUp = h.return_pct >= 0;
+                    return (
+                      <div key={h.ticker} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 600, color: "#c9f76f" }}>{h.ticker}</div>
+                          <div style={{ fontSize: 11, color: "rgba(245,241,232,0.4)" }}>{h.name ?? ""}</div>
+                        </div>
+                        <Sparkline data={sparkData} width={60} height={22} color={isUp ? "#7dd3a8" : "#e07b6c"} />
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <TickPulse trigger={tick} color={isUp ? "#7dd3a8" : "#e07b6c"} />
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>
+                              {formatCurrency(convertCurrency(h.quantity ? (h.current_value / h.quantity) : 0, h.currency, displayCurrency, usdBrl), displayCurrency)}
+                            </span>
+                          </div>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: isUp ? "#7dd3a8" : "#e07b6c" }}>
+                            {h.return_pct >= 0 ? "+" : ""}{h.return_pct.toFixed(2)}%
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </section>
+        </Reveal>
+
+        <Reveal delay={400}>
+          <section style={PANEL}>
+            <div className="kicker" style={{ marginBottom: 4 }}>Opportunity engine</div>
+            <h3 style={{ fontFamily: "var(--font-display)", fontSize: 20, margin: "0 0 16px" }}>Top holdings</h3>
+            {[...holdings].sort((a, b) => b.current_value - a.current_value).slice(0, 5).map(h => (
+              <div key={h.ticker} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, fontWeight: 600, color: "#c9f76f" }}>{h.ticker}</span>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: h.return_pct >= 0 ? "#7dd3a8" : "#e07b6c" }}>
+                  {h.return_pct >= 0 ? "+" : ""}{h.return_pct.toFixed(1)}%
+                </span>
+              </div>
+            ))}
+          </section>
+        </Reveal>
       </div>
     </div>
   );

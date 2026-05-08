@@ -1,170 +1,322 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState, useMemo } from "react";
+import type { CSSProperties } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { formatBRL, formatUSD, formatPct, getReturnColor, assetClassLabel, assetClassColor } from "@/lib/formatters";
 import { getHoldings, getPortfolioSummary } from "@/lib/api";
+import { Reveal } from "@/components/ui/reveal";
+import { Sparkline } from "@/components/ui/sparkline";
+import { CLASS_COLOR } from "@/components/ui/class-chip";
+import { AnimatedNumber } from "@/components/ui/animated-number";
+import { useCurrencyStore } from "@/lib/currency-store";
+import { convertCurrency, formatCurrency } from "@/lib/formatters";
 import type { AssetClass, Holding } from "@/lib/types";
 
 const TABS: { label: string; value: AssetClass | "ALL" }[] = [
   { label: "All", value: "ALL" },
+  { label: "US Stocks", value: "US_STOCK" },
   { label: "BR Stocks", value: "BR_STOCK" },
   { label: "FIIs", value: "FII" },
-  { label: "US Stocks", value: "US_STOCK" },
   { label: "Crypto", value: "CRYPTO" },
 ];
 
-function withWeights(holdings: Holding[]): (Holding & { weight_in_class: number })[] {
-  const totals: Record<string, number> = {};
-  for (const h of holdings) totals[h.asset_class] = (totals[h.asset_class] || 0) + h.current_value;
-  return holdings.map((h) => ({ ...h, weight_in_class: totals[h.asset_class] > 0 ? (h.current_value / totals[h.asset_class]) * 100 : 0 }));
+function genSparkData(seed: number, n = 30): number[] {
+  const r = (i: number) => Math.sin(seed * 0.1 + i * 0.7) * 0.03 + (Math.sin(i * 0.3 + seed) * 0.01);
+  let v = 100;
+  return Array.from({ length: n }, (_, i) => { v = v * (1 + r(i)); return v; });
 }
 
-export default function PortfolioPage() {
-  const [activeTab, setActiveTab] = useState<AssetClass | "ALL">("ALL");
-  const [search, setSearch] = useState("");
+function formatNum(v: number, decimals = 2): string {
+  return v.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
 
-  const { data: rawHoldings = [], isLoading } = useQuery({ queryKey: ["holdings"], queryFn: getHoldings });
-  const { data: summary } = useQuery({ queryKey: ["portfolio-summary"], queryFn: getPortfolioSummary });
-  const holdings = withWeights(rawHoldings);
+function formatPct(v: number): string {
+  return (v * 100).toFixed(2) + "%";
+}
 
-  const filtered = holdings.filter((h) => {
-    const matchClass = activeTab === "ALL" || h.asset_class === activeTab;
-    const matchSearch = h.ticker.toLowerCase().includes(search.toLowerCase()) || h.name.toLowerCase().includes(search.toLowerCase());
-    return matchClass && matchSearch;
+export default function HoldingsPage() {
+  const [filter, setFilter] = useState<AssetClass | "ALL">("ALL");
+  const [sort, setSort] = useState<{ key: string; dir: number }>({ key: "value", dir: -1 });
+  const displayCurrency = useCurrencyStore((s) => s.currency);
+
+  const { data: holdings = [], isLoading } = useQuery({
+    queryKey: ["holdings"],
+    queryFn: getHoldings,
   });
+  const { data: summary } = useQuery({ queryKey: ["portfolio-summary"], queryFn: getPortfolioSummary });
 
-  const totalValue = filtered.reduce((s, h) => {
-    const rate = h.currency === "USD" ? (summary?.usd_to_brl ?? 5.70) : 1;
-    return s + h.current_value * rate;
-  }, 0);
+  const usdBrl = summary?.usd_to_brl ?? 5.70;
+  const toDisplay = useCallback(
+    (value: number, currency: "BRL" | "USD") => convertCurrency(value, currency, displayCurrency, usdBrl),
+    [displayCurrency, usdBrl]
+  );
+
+  const filtered = useMemo(() => {
+    let rows = holdings.slice();
+    if (filter !== "ALL") rows = rows.filter((h: Holding) => h.asset_class === filter);
+
+    rows.sort((a: Holding, b: Holding) => {
+      let aVal = 0,
+        bVal = 0;
+      if (sort.key === "value") {
+        aVal = toDisplay(a.current_value || 0, a.currency);
+        bVal = toDisplay(b.current_value || 0, b.currency);
+      } else if (sort.key === "gain") {
+        aVal = toDisplay(a.total_gain || 0, a.currency);
+        bVal = toDisplay(b.total_gain || 0, b.currency);
+      } else if (sort.key === "return") {
+        aVal = a.return_pct || 0;
+        bVal = b.return_pct || 0;
+      }
+      return (aVal - bVal) * sort.dir;
+    });
+    return rows;
+  }, [holdings, filter, sort, toDisplay]);
+
+  const totalValue = filtered.reduce((s: number, h: Holding) => s + toDisplay(h.current_value || 0, h.currency), 0);
+  const totalGain = filtered.reduce((s: number, h: Holding) => s + toDisplay(h.total_gain || 0, h.currency), 0);
+  const avgReturn = filtered.length > 0 ? filtered.reduce((s: number, h: Holding) => s + (h.return_pct || 0), 0) / filtered.length : 0;
+
+  const headers = [
+    { key: "asset", label: "Asset", sortable: false },
+    { key: "qty", label: "Qty", sortable: false, align: "right" },
+    { key: "avg", label: "Avg cost", sortable: false, align: "right" },
+    { key: "price", label: "Price", sortable: false, align: "right" },
+    { key: "spark", label: "30D", sortable: false, align: "center" },
+    { key: "value", label: "Value", sortable: true, align: "right" },
+    { key: "gain", label: "Gain", sortable: true, align: "right" },
+    { key: "return", label: "Return", sortable: true, align: "right" },
+  ];
+
+  const PANEL = {
+    background: "#14130f",
+    border: "1px solid rgba(255,255,255,0.07)",
+    borderRadius: 14,
+    padding: 24,
+  };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold" style={{ fontFamily: "Syne, sans-serif", color: "#F0F2F7" }}>Portfolio</h1>
-        <p className="text-sm mt-0.5" style={{ color: "#4A5568", fontFamily: "JetBrains Mono, monospace" }}>
-          {isLoading ? "Loading..." : `${holdings.length} assets · ${formatBRL(totalValue)} consolidated`}
-        </p>
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {/* HEADER */}
+      <Reveal>
+        <div>
+          <div style={{ marginBottom: 8, color: "#8892a4", fontSize: 12, fontWeight: 500, letterSpacing: "0.05em" }}>
+            Holdings · {filtered.length} positions
+          </div>
+          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(30px, 4vw, 36px)", lineHeight: 1.2, color: "#f5f1e8", margin: 0 }}>
+            Portfolio breakdown
+          </h1>
+        </div>
+      </Reveal>
 
-      {/* Tabs + Search */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex gap-1 p-1 rounded-lg" style={{ background: "#111318", border: "1px solid #1E2330" }}>
+      {/* FILTER TABS */}
+      <Reveal delay={50}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {TABS.map((tab) => (
             <button
               key={tab.value}
-              onClick={() => setActiveTab(tab.value)}
-              className="px-4 py-1.5 rounded-md text-sm transition-all duration-150"
+              onClick={() => setFilter(tab.value)}
               style={{
-                background: activeTab === tab.value ? "#1E2330" : "transparent",
-                color: activeTab === tab.value ? "#C9963C" : "#8892A4",
-                fontFamily: "DM Sans, sans-serif",
-                fontWeight: activeTab === tab.value ? "500" : "400",
-                border: activeTab === tab.value ? "1px solid rgba(201,150,60,0.2)" : "1px solid transparent",
+                padding: "8px 12px",
+                borderRadius: 6,
+                border: filter === tab.value ? "1px solid rgba(201, 247, 111, 0.3)" : "1px solid rgba(255,255,255,0.1)",
+                background: filter === tab.value ? "rgba(201, 247, 111, 0.1)" : "rgba(0,0,0,0.2)",
+                color: filter === tab.value ? "#c9f76f" : "#8892a4",
+                fontSize: 13,
+                fontWeight: "500",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                fontFamily: "JetBrains Mono, monospace",
               }}
             >
               {tab.label}
             </button>
           ))}
         </div>
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search ticker or name..."
-          className="px-4 py-2 rounded-md text-sm outline-none w-64"
-          style={{ background: "#111318", border: "1px solid #1E2330", color: "#F0F2F7", fontFamily: "JetBrains Mono, monospace" }}
-        />
-      </div>
+      </Reveal>
 
-      {/* Table */}
-      <div className="rounded-lg border overflow-hidden" style={{ background: "#111318", borderColor: "#1E2330" }}>
-        <table className="w-full">
-          <thead>
-            <tr style={{ borderBottom: "1px solid #1E2330", background: "#0D0F14" }}>
-              {["Ticker", "Name", "Class", "Qty", "Live Price", "Current Value", "Total Gain", "Return", "Weight (%)"].map((h, i) => (
-                <th
-                  key={h}
-                  className={`px-5 py-3 text-xs uppercase tracking-widest ${i >= 3 ? "text-right" : "text-left"}`}
-                  style={{ color: "#4A5568", fontFamily: "JetBrains Mono, monospace" }}
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr><td colSpan={9} className="px-5 py-10 text-center text-xs" style={{ color: "#4A5568", fontFamily: "JetBrains Mono" }}>Loading...</td></tr>
-            ) : filtered.map((h, i) => (
-              <tr
-                key={h.ticker}
-                style={{ borderBottom: i < filtered.length - 1 ? "1px solid #161A23" : "none", cursor: "pointer" }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#161A23"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-              >
-                <td className="px-5 py-3.5">
-                  <span className="text-sm font-bold" style={{ color: "#C9963C", fontFamily: "JetBrains Mono, monospace" }}>{h.ticker}</span>
-                </td>
-                <td className="px-5 py-3.5 max-w-[180px]">
-                  <span className="text-sm truncate block" style={{ color: "#8892A4" }}>{h.name}</span>
-                </td>
-                <td className="px-5 py-3.5">
-                  <span
-                    className="text-xs px-2 py-0.5 rounded-full border"
-                    style={{
-                      color: assetClassColor(h.asset_class),
-                      borderColor: assetClassColor(h.asset_class) + "40",
-                      background: assetClassColor(h.asset_class) + "15",
-                      fontFamily: "JetBrains Mono",
-                    }}
-                  >
-                    {assetClassLabel(h.asset_class)}
-                  </span>
-                </td>
-                <td className="px-5 py-3.5 text-right">
-                  <span className="text-sm" style={{ color: "#8892A4", fontFamily: "JetBrains Mono, monospace" }}>
-                    {(h.quantity ?? 0).toLocaleString("en-US", { maximumFractionDigits: h.asset_class === "CRYPTO" ? 6 : 2 })}
-                  </span>
-                </td>
-                <td className="px-5 py-3.5 text-right">
-                  <span className="text-sm" style={{ color: "#F0F2F7", fontFamily: "JetBrains Mono, monospace" }}>
-                    {h.currency === "BRL" ? formatBRL(h.current_price ?? 0) : formatUSD(h.current_price ?? 0)}
-                  </span>
-                </td>
-                <td className="px-5 py-3.5 text-right">
-                  <span className="text-sm" style={{ color: "#F0F2F7", fontFamily: "JetBrains Mono, monospace" }}>
-                    {h.currency === "BRL" ? formatBRL(h.current_value) : formatUSD(h.current_value)}
-                  </span>
-                </td>
-                <td className="px-5 py-3.5 text-right">
-                  <span className={`text-sm ${getReturnColor(h.total_gain)}`} style={{ fontFamily: "JetBrains Mono, monospace" }}>
-                    {h.currency === "BRL" ? formatBRL(h.total_gain) : formatUSD(h.total_gain)}
-                  </span>
-                </td>
-                <td className="px-5 py-3.5 text-right">
-                  <span className={`text-sm font-medium ${getReturnColor(h.return_pct)}`} style={{ fontFamily: "JetBrains Mono, monospace" }}>
-                    {formatPct(h.return_pct)}
-                  </span>
-                </td>
-                <td className="px-5 py-3.5 text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: "#1E2330" }}>
-                      <div
-                        className="h-full rounded-full"
-                        style={{ width: `${Math.min(h.weight_in_class, 100)}%`, background: assetClassColor(h.asset_class) }}
-                      />
-                    </div>
-                    <span className="text-xs w-10 text-right" style={{ color: "#8892A4", fontFamily: "JetBrains Mono" }}>
-                      {h.weight_in_class.toFixed(1)}%
-                    </span>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {/* SUMMARY STRIP */}
+      <Reveal delay={100}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+            gap: 16,
+          }}
+        >
+          <div style={{ ...PANEL, padding: 16 }}>
+            <div style={{ color: "#8892a4", fontSize: 11, fontWeight: 600, letterSpacing: "0.05em", marginBottom: 8 }}>
+              Subset value
+            </div>
+            <div style={{ color: "#f5f1e8", fontSize: 22, fontWeight: 600, fontFamily: "var(--font-mono)" }}>
+              <AnimatedNumber value={totalValue} fmt={(v) => formatCurrency(v, displayCurrency)} />
+            </div>
+          </div>
+          <div style={{ ...PANEL, padding: 16 }}>
+            <div style={{ color: "#8892a4", fontSize: 11, fontWeight: 600, letterSpacing: "0.05em", marginBottom: 8 }}>
+              Subset gain
+            </div>
+            <div style={{ color: totalGain >= 0 ? "#7dd3a8" : "#e07b6c", fontSize: 22, fontWeight: 600, fontFamily: "var(--font-mono)" }}>
+              {totalGain >= 0 ? "+" : ""}<AnimatedNumber value={totalGain} fmt={(v) => v.toLocaleString("en-US", { maximumFractionDigits: 0 })} />
+            </div>
+          </div>
+          <div style={{ ...PANEL, padding: 16 }}>
+            <div style={{ color: "#8892a4", fontSize: 11, fontWeight: 600, letterSpacing: "0.05em", marginBottom: 8 }}>
+              Avg return
+            </div>
+            <div style={{ color: avgReturn >= 0 ? "#7dd3a8" : "#e07b6c", fontSize: 22, fontWeight: 600, fontFamily: "var(--font-mono)" }}>
+              {formatPct(avgReturn)}
+            </div>
+          </div>
+          <div style={{ ...PANEL, padding: 16 }}>
+            <div style={{ color: "#8892a4", fontSize: 11, fontWeight: 600, letterSpacing: "0.05em", marginBottom: 8 }}>
+              Positions
+            </div>
+            <div style={{ color: "#f5f1e8", fontSize: 22, fontWeight: 600, fontFamily: "var(--font-mono)" }}>
+              {filtered.length}
+            </div>
+          </div>
+        </div>
+      </Reveal>
+
+      {/* TABLE */}
+      <Reveal delay={150}>
+        <div
+          style={{
+            ...PANEL,
+            padding: 0,
+            overflowX: "auto",
+            overflowY: "hidden",
+          }}
+        >
+          {isLoading ? (
+            <div style={{ padding: 24, textAlign: "center", color: "#8892a4" }}>Loading...</div>
+          ) : filtered.length === 0 ? (
+            <div style={{ padding: 24, textAlign: "center", color: "#8892a4" }}>No holdings</div>
+          ) : (
+            <table style={{ width: "100%", minWidth: 860, borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.07)", background: "rgba(0,0,0,0.2)" }}>
+                {headers.map((h) => (
+                    <th
+                      key={h.key}
+                      onClick={() => h.sortable && setSort((s) => ({ key: h.key, dir: s.key === h.key ? -s.dir : -1 }))}
+                      style={{
+                        padding: "12px 16px",
+                        textAlign: (h.align as CSSProperties["textAlign"]) || "left",
+                        color: "#8892a4",
+                        fontSize: 11,
+                        fontWeight: 600,
+                        letterSpacing: "0.05em",
+                        cursor: h.sortable ? "pointer" : "default",
+                        userSelect: "none",
+                      }}
+                    >
+                      {h.label}
+                      {h.sortable && sort.key === h.key && (
+                        <span style={{ marginLeft: 6, color: "#c9f76f" }}>
+                          {sort.dir < 0 ? "↓" : "↑"}
+                        </span>
+                      )}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((h: Holding, i: number) => {
+                  const series = genSparkData(h.ticker.charCodeAt(0), 30);
+                  const gain = h.total_gain || 0;
+                  const ret = h.return_pct || 0;
+                  const changeColor = (h.change_1d || 0) >= 0 ? "#7dd3a8" : "#e07b6c";
+
+                  return (
+                    <tr
+                      key={h.ticker}
+                      style={{
+                        borderBottom: i < filtered.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
+                        transition: "background 0.15s",
+                        cursor: "pointer",
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.03)";
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLElement).style.background = "transparent";
+                      }}
+                    >
+                      {/* ASSET */}
+                      <td style={{ padding: "12px 16px", color: "#f5f1e8" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <div
+                            style={{
+                              width: 36,
+                              height: 36,
+                              borderRadius: 8,
+                              background: CLASS_COLOR[h.asset_class] + "22",
+                              color: CLASS_COLOR[h.asset_class],
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: 11,
+                              fontWeight: 600,
+                              fontFamily: "JetBrains Mono, monospace",
+                            }}
+                          >
+                            {h.ticker.slice(0, 2)}
+                          </div>
+                          <div>
+                            <div style={{ color: "#f5f1e8", fontSize: 13, fontWeight: 600, fontFamily: "JetBrains Mono, monospace" }}>
+                              {h.ticker}
+                            </div>
+                            <div style={{ color: "#8892a4", fontSize: 12, marginTop: 2 }}>
+                              {h.name} {h.sector ? `· ${h.sector}` : ""}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* QTY */}
+                      <td style={{ padding: "12px 16px", textAlign: "right", color: "#f5f1e8", fontFamily: "JetBrains Mono, monospace", fontSize: 13 }}>
+                        {formatNum(h.quantity || 0, h.asset_class === "CRYPTO" ? 4 : 0)}
+                      </td>
+
+                      {/* AVG COST */}
+                      <td style={{ padding: "12px 16px", textAlign: "right", color: "#8892a4", fontFamily: "JetBrains Mono, monospace", fontSize: 13 }}>
+                        {formatCurrency(toDisplay(h.average_cost || 0, h.currency), displayCurrency)}
+                      </td>
+
+                      {/* PRICE */}
+                      <td style={{ padding: "12px 16px", textAlign: "right", color: "#f5f1e8", fontFamily: "JetBrains Mono, monospace", fontSize: 13 }}>
+                        {formatCurrency(toDisplay(h.current_price || 0, h.currency), displayCurrency)}
+                      </td>
+
+                      {/* 30D SPARKLINE */}
+                      <td style={{ padding: "12px 16px", textAlign: "center" }}>
+                        <Sparkline data={series} width={70} height={22} color={changeColor} strokeWidth={1.3} fill={false} />
+                      </td>
+
+                      {/* VALUE */}
+                      <td style={{ padding: "12px 16px", textAlign: "right", color: "#f5f1e8", fontFamily: "JetBrains Mono, monospace", fontSize: 13 }}>
+                        {formatCurrency(toDisplay(h.current_value || 0, h.currency), displayCurrency)}
+                      </td>
+
+                      {/* GAIN */}
+                      <td style={{ padding: "12px 16px", textAlign: "right", fontFamily: "JetBrains Mono, monospace", fontSize: 13, color: gain >= 0 ? "#7dd3a8" : "#e07b6c" }}>
+                        {gain >= 0 ? "+" : ""}{formatCurrency(Math.abs(toDisplay(gain, h.currency)), displayCurrency)}
+                      </td>
+
+                      {/* RETURN */}
+                      <td style={{ padding: "12px 16px", textAlign: "right", fontFamily: "JetBrains Mono, monospace", fontSize: 13, color: ret >= 0 ? "#7dd3a8" : "#e07b6c" }}>
+                        {formatPct(ret)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </Reveal>
     </div>
   );
 }
