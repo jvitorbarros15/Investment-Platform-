@@ -28,7 +28,7 @@ export function AnimatedNumber({ value, fmt = (v) => v.toFixed(0), duration = 12
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [value]);
+  }, [value, duration]);
 
   return <span>{fmt(display)}</span>;
 }
