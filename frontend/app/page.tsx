@@ -175,7 +175,7 @@ export default function Dashboard() {
               </div>
               {isLoading ? (
                 <div className="px-4 py-4 text-xs text-center" style={{ color: "#4A5568", fontFamily: "JetBrains Mono" }}>Loading...</div>
-              ) : group.items.map((h) => (
+              ) : group.items.map((h: typeof summary.top_gainers[0]) => (
                 <div key={h.ticker} className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: "1px solid #161A23" }}>
                   <span className="text-sm font-bold" style={{ color: "#C9963C", fontFamily: "JetBrains Mono" }}>{h.ticker}</span>
                   <span className={`text-sm font-medium ${getReturnColor(h.return_pct)}`} style={{ fontFamily: "JetBrains Mono" }}>{formatPct(h.return_pct)}</span>
