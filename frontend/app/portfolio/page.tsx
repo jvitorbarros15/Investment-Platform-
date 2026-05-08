@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { formatBRL, formatUSD, formatPct, getReturnColor, assetClassLabel, assetClassColor } from "@/lib/formatters";
-import { getHoldings } from "@/lib/api";
+import { getHoldings, getPortfolioSummary } from "@/lib/api";
 import type { AssetClass, Holding } from "@/lib/types";
 
 const TABS: { label: string; value: AssetClass | "ALL" }[] = [
@@ -25,6 +25,7 @@ export default function PortfolioPage() {
   const [search, setSearch] = useState("");
 
   const { data: rawHoldings = [], isLoading } = useQuery({ queryKey: ["holdings"], queryFn: getHoldings });
+  const { data: summary } = useQuery({ queryKey: ["portfolio-summary"], queryFn: getPortfolioSummary });
   const holdings = withWeights(rawHoldings);
 
   const filtered = holdings.filter((h) => {
@@ -34,7 +35,7 @@ export default function PortfolioPage() {
   });
 
   const totalValue = filtered.reduce((s, h) => {
-    const rate = h.currency === "USD" ? 5.70 : 1;
+    const rate = h.currency === "USD" ? (summary?.usd_to_brl ?? 5.70) : 1;
     return s + h.current_value * rate;
   }, 0);
 
