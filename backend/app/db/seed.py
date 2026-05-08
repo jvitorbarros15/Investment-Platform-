@@ -38,6 +38,8 @@ SEED_ASSETS = [
     {"ticker": "SHIB", "yahoo_symbol": "SHIB-USD", "name": "Shiba Inu", "asset_class": "CRYPTO", "currency": "USD", "sector": "Crypto", "country": "Global", "current_value": 0.01, "total_gain": 0, "return_pct": 0, "total_invested": 0.01, "quantity": 2185.07},
 ]
 
+SEED_USER_ID = "00000000-0000-0000-0000-000000000001"
+
 WATCHLIST_SEEDS = [
     {"ticker": "VALE3", "status": "STUDYING", "reason": "Iron ore play, dividend yield", "notes": "Waiting for better entry. Track quarterly earnings.", "target_price": 85.0},
     {"ticker": "MXRF11", "status": "WAITING_PRICE", "reason": "FII with strong yield", "notes": "Good DY but waiting for R$ 10.50 target.", "target_price": 10.50},
@@ -60,6 +62,7 @@ async def seed_database():
 
         # Create user
         user = User(
+            id=SEED_USER_ID,
             email="admin@invest.local",
             hashed_password=get_password_hash("invest123"),
             base_currency="BRL",
