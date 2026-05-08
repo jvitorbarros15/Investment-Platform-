@@ -4,8 +4,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.db.models import Asset, Holding, Portfolio
-
-USD_TO_BRL = settings.USD_TO_BRL
+from app.services.price_refresh_service import get_usd_to_brl
 
 
 async def get_portfolio_summary(db: AsyncSession, portfolio_id: str) -> dict:
@@ -22,7 +21,7 @@ async def get_portfolio_summary(db: AsyncSession, portfolio_id: str) -> dict:
     allocation: dict[str, dict] = {}
 
     for h in holdings:
-        rate = USD_TO_BRL if h.currency == "USD" else 1.0
+        rate = get_usd_to_brl() if h.currency == "USD" else 1.0
         val = (h.current_value or 0) * rate
         inv = (h.total_invested or 0) * rate
         gain = (h.total_gain_including_dividends or 0) * rate
@@ -56,7 +55,7 @@ async def get_portfolio_summary(db: AsyncSession, portfolio_id: str) -> dict:
         "total_invested_brl": round(total_invested_brl, 2),
         "total_gain_brl": round(total_gain_brl, 2),
         "total_return_pct": round(total_return_pct, 2),
-        "usd_to_brl": USD_TO_BRL,
+        "usd_to_brl": get_usd_to_brl(),
         "allocation": allocation_list,
         "top_gainers": top_gainers,
         "top_losers": top_losers,
