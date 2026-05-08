@@ -29,7 +29,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en-US" className={`h-full ${instrumentSerif.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
-      <body className="h-full flex antialiased" style={{ background: "#0c0b08" }}>
+      <body className="h-full flex antialiased">
         <Providers>
           <LayoutWrapper>{children}</LayoutWrapper>
         </Providers>
