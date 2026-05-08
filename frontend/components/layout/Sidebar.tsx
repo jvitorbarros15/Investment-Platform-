@@ -12,9 +12,12 @@ const NAV = [
   { href: "/alerts",      label: "Alerts",     icon: "M12 22a2.5 2.5 0 0 0 2.5-2.5h-5A2.5 2.5 0 0 0 12 22zm6.4-6V11c0-3.1-1.6-5.7-4.5-6.4V4a1.9 1.9 0 0 0-3.8 0v.6C7.2 5.3 5.6 7.9 5.6 11v5l-2.2 2.2v.8h17.2v-.8L18.4 16z" },
 ];
 
+const DISPLAYED_EMAIL = "admin@invest.local";
+
 export function Sidebar() {
   const pathname = usePathname();
   const logout = useAuthStore((s) => s.logout);
+  const avatarInitials = DISPLAYED_EMAIL.slice(0, 2).toUpperCase();
 
   return (
     <aside style={{
@@ -78,11 +81,11 @@ export function Sidebar() {
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 12, fontWeight: 700, color: "#0c0b08",
           }}>
-            JV
+            {avatarInitials}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 12, fontWeight: 500, color: "#f5f1e8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              admin@invest.local
+              {DISPLAYED_EMAIL}
             </div>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "rgba(245,241,232,0.4)" }}>BASE · BRL</div>
           </div>
