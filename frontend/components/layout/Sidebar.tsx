@@ -42,7 +42,7 @@ export function Sidebar() {
       {/* Nav */}
       <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
         {NAV.map(item => {
-          const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          const active = item.href === "/" ? pathname === "/" : (item.href !== "/" && pathname.startsWith(item.href + "/")) || pathname === item.href;
           return (
             <Link key={item.href} href={item.href} style={{
               display: "flex", alignItems: "center", gap: 10,

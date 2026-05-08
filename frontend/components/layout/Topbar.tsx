@@ -17,8 +17,13 @@ export function Topbar() {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    try { await refreshPrices(); } catch {}
-    finally { setIsRefreshing(false); }
+    try {
+      await refreshPrices();
+    } catch (err) {
+      console.error("Price refresh failed:", err);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   return (
