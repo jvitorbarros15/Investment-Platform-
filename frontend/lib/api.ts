@@ -96,3 +96,13 @@ export async function createTransaction(tx: {
   const { data } = await api.post("/transactions/", tx);
   return data;
 }
+
+export async function getAssetDetail(ticker: string) {
+  const { data } = await api.get(`/assets/${ticker}`);
+  return data;
+}
+
+export async function getAssetHistory(ticker: string, period = "30d") {
+  const { data } = await api.get(`/assets/${ticker}/history?period=${period}`);
+  return data;
+}

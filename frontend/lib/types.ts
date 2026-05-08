@@ -13,6 +13,10 @@ export interface Holding {
   sector?: string;
   weight_in_class?: number;
   quantity?: number;
+  average_cost?: number;
+  current_price?: number;
+  unrealized_gain?: number;
+  change_1d?: number;
 }
 
 export interface AllocationItem {
@@ -36,11 +40,16 @@ export interface PortfolioSummary {
 export interface WatchlistItem {
   id: string;
   ticker: string;
+  name?: string;
+  asset_class?: AssetClass;
   target_price?: number;
+  current_price?: number;
   status: WatchlistStatus;
   reason?: string;
   notes?: string;
   created_at: string;
+  change_30d?: number;
+  score?: number;
 }
 
 export interface Transaction {
