@@ -25,9 +25,10 @@ async def get_history(symbol: str, period: str = "1mo"):
 
 @router.post("/refresh")
 async def refresh_prices(
+    force: bool = False,
     current_user: User = Depends(get_current_user),
 ):
     exchange = await refresh_exchange_rate()
-    result = await refresh_all_portfolios()
+    result = await refresh_all_portfolios(force=force)
     result["usd_to_brl"] = exchange["rate"]
     return result

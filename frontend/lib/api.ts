@@ -55,9 +55,9 @@ export async function updatePhilosophy(id: string, weights: Record<string, numbe
   return data;
 }
 
-export async function refreshPrices() {
-  const { data } = await api.post("/market/refresh");
-  return data as { attempted: number; updated: number; skipped: number; message: string; usd_to_brl?: number };
+export async function refreshPrices(force = false) {
+  const { data } = await api.post(`/market/refresh${force ? "?force=true" : ""}`);
+  return data as { attempted: number; updated: number; skipped: number; cached?: boolean; message: string; usd_to_brl?: number };
 }
 
 export async function getPortfolioHistory(period = "30d") {

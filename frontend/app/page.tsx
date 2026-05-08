@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AllocationChart } from "@/components/dashboard/AllocationChart";
 import { KpiCard } from "@/components/dashboard/KpiCard";
@@ -19,7 +19,6 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
-  const didAutoRefresh = useRef(false);
   const [lastRefreshMessage, setLastRefreshMessage] = useState<string | null>(null);
   const {
     mutate: refreshLivePrices,
@@ -41,15 +40,8 @@ export default function Dashboard() {
     },
   });
 
-  // Auto-refresh prices on component mount
-  useEffect(() => {
-    if (didAutoRefresh.current) return;
-    didAutoRefresh.current = true;
-    refreshLivePrices();
-  }, [refreshLivePrices]);
-
   const handleRefresh = async () => {
-    refreshLivePrices();
+    refreshLivePrices(false);
   };
 
   const { data: summary, isLoading: sl } = useQuery({ queryKey: ["portfolio-summary"], queryFn: getPortfolioSummary });
