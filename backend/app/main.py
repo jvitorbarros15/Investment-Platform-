@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
     try:
         scheduler.add_job(refresh_all_portfolios, "interval", minutes=15, id="refresh_prices")
         scheduler.add_job(refresh_exchange_rate, "interval", minutes=15, id="refresh_rate")
-        scheduler.add_listener(handle_job_error, events=[EVENT_JOB_EXECUTED, EVENT_JOB_ERROR])
+        scheduler.add_listener(handle_job_error, mask=EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
         scheduler.start()
         logger.info("Scheduler started successfully")
     except Exception as e:
