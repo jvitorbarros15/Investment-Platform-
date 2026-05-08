@@ -1,12 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AllocationChart } from "@/components/dashboard/AllocationChart";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { PerformanceChart } from "@/components/charts/PerformanceChart";
 import { formatBRL, formatUSD, formatPct, getReturnColor, assetClassLabel } from "@/lib/formatters";
 import { generatePortfolioHistory } from "@/lib/mock-data";
-import { getPortfolioSummary, getHoldings } from "@/lib/api";
+import { getPortfolioSummary, getHoldings, refreshPrices } from "@/lib/api";
 import type { Holding } from "@/lib/types";
 
 function withWeights(holdings: Holding[]): (Holding & { weight_in_class: number })[] {
@@ -17,6 +18,35 @@ function withWeights(holdings: Holding[]): (Holding & { weight_in_class: number 
 
 export default function Dashboard() {
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Auto-refresh prices on component mount
+  useEffect(() => {
+    const doRefresh = async () => {
+      setIsRefreshing(true);
+      try {
+        await refreshPrices();
+      } catch (error) {
+        console.error("Auto-refresh failed:", error);
+      } finally {
+        setIsRefreshing(false);
+      }
+    };
+
+    doRefresh();
+  }, []);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshPrices();
+    } catch (error) {
+      console.error("Manual refresh failed:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const { data: summary, isLoading: sl } = useQuery({ queryKey: ["portfolio-summary"], queryFn: getPortfolioSummary });
   const { data: rawHoldings = [], isLoading: hl } = useQuery({ queryKey: ["holdings"], queryFn: getHoldings });
@@ -39,14 +69,30 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8" style={{ animation: "fadeIn 0.5s ease-out" }}>
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold" style={{ fontFamily: "Syne, sans-serif", color: "#F0F2F7" }}>
-          Good morning, <span style={{ color: "#C9963C" }}>Joao</span>
-        </h1>
-        <p className="text-sm mt-0.5" style={{ color: "#4A5568", fontFamily: "JetBrains Mono, monospace" }}>
-          {today}
-        </p>
+      {/* Header with refresh button */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ fontFamily: "Syne, sans-serif", color: "#F0F2F7" }}>
+            Good morning, <span style={{ color: "#C9963C" }}>Joao</span>
+          </h1>
+          <p className="text-sm mt-0.5" style={{ color: "#4A5568", fontFamily: "JetBrains Mono, monospace" }}>
+            {today}
+          </p>
+        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="px-3 py-1.5 rounded text-sm transition-all"
+          style={{
+            background: isRefreshing ? "#161A23" : "#C9963C",
+            color: "#F0F2F7",
+            opacity: isRefreshing ? 0.6 : 1,
+            fontFamily: "JetBrains Mono, monospace",
+            cursor: isRefreshing ? "not-allowed" : "pointer",
+          }}
+        >
+          {isRefreshing ? "Refreshing..." : "↻ Refresh"}
+        </button>
       </div>
 
       {/* KPI Row */}
