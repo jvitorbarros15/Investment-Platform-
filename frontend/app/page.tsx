@@ -6,8 +6,7 @@ import { AllocationChart } from "@/components/dashboard/AllocationChart";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { PerformanceChart } from "@/components/charts/PerformanceChart";
 import { formatBRL, formatUSD, formatPct, getReturnColor, assetClassLabel } from "@/lib/formatters";
-import { generatePortfolioHistory } from "@/lib/mock-data";
-import { getPortfolioSummary, getHoldings, refreshPrices } from "@/lib/api";
+import { getPortfolioSummary, getHoldings, getPortfolioHistory, refreshPrices } from "@/lib/api";
 import type { Holding } from "@/lib/types";
 
 function withWeights(holdings: Holding[]): (Holding & { weight_in_class: number })[] {
@@ -50,9 +49,14 @@ export default function Dashboard() {
 
   const { data: summary, isLoading: sl } = useQuery({ queryKey: ["portfolio-summary"], queryFn: getPortfolioSummary });
   const { data: rawHoldings = [], isLoading: hl } = useQuery({ queryKey: ["holdings"], queryFn: getHoldings });
+  const { data: history = [], isLoading: histLoading } = useQuery({
+    queryKey: ["portfolio-history"],
+    queryFn: () => getPortfolioHistory("30d"),
+    enabled: !!summary,
+  });
 
   const holdings = withWeights(rawHoldings);
-  const isLoading = sl || hl;
+  const isLoading = sl || hl || histLoading;
 
   const brStocks = holdings.filter((h) => h.asset_class === "BR_STOCK");
   const fiis = holdings.filter((h) => h.asset_class === "FII");
@@ -65,7 +69,6 @@ export default function Dashboard() {
   const cryptoTotal = crypto.reduce((s, h) => s + h.current_value, 0);
 
   const top5 = [...holdings].sort((a, b) => b.current_value - a.current_value).slice(0, 6);
-  const history = generatePortfolioHistory(summary?.total_value_brl);
 
   return (
     <div className="space-y-8" style={{ animation: "fadeIn 0.5s ease-out" }}>

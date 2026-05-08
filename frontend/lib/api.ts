@@ -60,6 +60,11 @@ export async function refreshPrices() {
   return data;
 }
 
+export async function getPortfolioHistory(period = "30d") {
+  const { data } = await api.get(`/portfolio/history?period=${period}`);
+  return data as { date: string; value: number }[];
+}
+
 export async function login(email: string, password: string) {
   const { data } = await api.post("/auth/login", { email, password });
   return data as { access_token: string };
