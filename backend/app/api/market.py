@@ -8,6 +8,17 @@ from app.services.price_refresh_service import refresh_all_portfolios, refresh_e
 router = APIRouter(prefix="/market", tags=["market"])
 provider = YahooFinanceProvider()
 
+MAIN_INDEXES = [
+    {"symbol": "^GSPC", "name": "S&P 500", "region": "United States"},
+    {"symbol": "^IXIC", "name": "Nasdaq Composite", "region": "United States"},
+    {"symbol": "^DJI", "name": "Dow Jones Industrial Average", "region": "United States"},
+    {"symbol": "^RUT", "name": "Russell 2000", "region": "United States"},
+    {"symbol": "^BVSP", "name": "Ibovespa", "region": "Brazil"},
+    {"symbol": "^FTSE", "name": "FTSE 100", "region": "United Kingdom"},
+    {"symbol": "^N225", "name": "Nikkei 225", "region": "Japan"},
+    {"symbol": "^GDAXI", "name": "DAX", "region": "Germany"},
+]
+
 
 @router.get("/quote/{symbol}")
 async def get_quote(symbol: str):
@@ -21,6 +32,22 @@ async def get_quote(symbol: str):
 async def get_history(symbol: str, period: str = "1mo"):
     data = await provider.get_history(symbol, period)
     return data
+
+
+@router.get("/indexes")
+async def get_indexes(
+    current_user: User = Depends(get_current_user),
+):
+    results = []
+    for item in MAIN_INDEXES:
+        quote = await provider.get_quote(item["symbol"])
+        results.append({
+            **item,
+            "ticker": item["symbol"],
+            "price": quote.get("price") if quote else None,
+            "currency": quote.get("currency") if quote else None,
+        })
+    return results
 
 
 @router.post("/refresh")

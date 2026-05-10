@@ -1,5 +1,6 @@
 import axios from "axios";
 import { useAuthStore } from "./auth-store";
+import type { AssetSearchResult, MarketIndex } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -64,6 +65,17 @@ export async function getPortfolioHistory(period = "30d") {
   return data as { date: string; value: number }[];
 }
 
+export async function searchAssets(query: string) {
+  if (!query.trim()) return [] as AssetSearchResult[];
+  const { data } = await api.get(`/assets/search?q=${encodeURIComponent(query.trim())}`);
+  return data as AssetSearchResult[];
+}
+
+export async function getMarketIndexes() {
+  const { data } = await api.get("/market/indexes");
+  return data as MarketIndex[];
+}
+
 export async function markAlertRead(id: string) {
   const { data } = await api.post(`/alerts/mark-read/${id}`);
   return data;
@@ -92,11 +104,11 @@ export async function createTransaction(tx: {
 }
 
 export async function getAssetDetail(ticker: string) {
-  const { data } = await api.get(`/assets/${ticker}`);
+  const { data } = await api.get(`/market/quote/${encodeURIComponent(ticker)}`);
   return data;
 }
 
 export async function getAssetHistory(ticker: string, period = "30d") {
-  const { data } = await api.get(`/assets/${ticker}/history?period=${period}`);
+  const { data } = await api.get(`/market/history/${encodeURIComponent(ticker)}?period=${period}`);
   return data;
 }

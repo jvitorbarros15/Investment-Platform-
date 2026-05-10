@@ -3,12 +3,16 @@ const CLASS_COLOR: Record<string, string> = {
   BR_STOCK: "#f0c674",
   FII:      "#f0c674",
   CRYPTO:   "#c9f76f",
+  ETF:      "#9ec5fe",
+  INDEX:    "#cfa6f0",
 };
 const CLASS_LABEL: Record<string, string> = {
   US_STOCK: "US Stock",
   BR_STOCK: "BR Stock",
   FII:      "FII",
   CRYPTO:   "Crypto",
+  ETF:      "ETF",
+  INDEX:    "Index",
 };
 
 export { CLASS_COLOR, CLASS_LABEL };

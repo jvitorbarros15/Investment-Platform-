@@ -1,6 +1,27 @@
-export type AssetClass = "BR_STOCK" | "US_STOCK" | "FII" | "CRYPTO" | "ETF" | "CASH";
+export type AssetClass = "BR_STOCK" | "US_STOCK" | "FII" | "CRYPTO" | "ETF" | "CASH" | "INDEX";
 export type Currency = "BRL" | "USD";
 export type WatchlistStatus = "STUDYING" | "WAITING_PRICE" | "STRONG_CANDIDATE" | "AVOID" | "BOUGHT";
+
+export interface AssetSearchResult {
+  id?: string;
+  ticker: string;
+  yahoo_symbol?: string;
+  name: string;
+  asset_class: AssetClass;
+  currency?: Currency | string;
+  exchange?: string;
+  quote_type?: string;
+  source?: string;
+}
+
+export interface MarketIndex {
+  symbol: string;
+  ticker: string;
+  name: string;
+  region: string;
+  price?: number | null;
+  currency?: string | null;
+}
 
 export interface Holding {
   ticker: string;

@@ -6,9 +6,51 @@ import yfinance as yf
 from .base import MarketDataProvider
 
 YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+YAHOO_SEARCH_URL = "https://query2.finance.yahoo.com/v1/finance/search"
 
 
 class YahooFinanceProvider(MarketDataProvider):
+    async def search(self, query: str, limit: int = 8) -> list[dict]:
+        if not query.strip():
+            return []
+
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                response = await client.get(
+                    YAHOO_SEARCH_URL,
+                    params={
+                        "q": query.strip(),
+                        "quotesCount": limit,
+                        "newsCount": 0,
+                        "enableFuzzyQuery": "true",
+                    },
+                    headers={"User-Agent": "Mozilla/5.0"},
+                )
+                response.raise_for_status()
+                payload = response.json()
+        except Exception:
+            return []
+
+        results = []
+        for item in payload.get("quotes", []):
+            symbol = item.get("symbol")
+            if not symbol:
+                continue
+
+            quote_type = item.get("quoteType") or item.get("typeDisp") or ""
+            results.append({
+                "ticker": symbol,
+                "yahoo_symbol": symbol,
+                "name": item.get("longname") or item.get("shortname") or item.get("name") or symbol,
+                "asset_class": _asset_class_from_quote(symbol, quote_type),
+                "currency": item.get("currency") or _currency_from_symbol(symbol),
+                "exchange": item.get("exchDisp") or item.get("exchange"),
+                "quote_type": quote_type,
+                "source": "yahoo",
+            })
+
+        return results
+
     async def get_quote(self, symbol: str) -> dict:
         chart_quote = await _get_chart_quote(symbol)
         if chart_quote:
@@ -191,3 +233,22 @@ def _first_number(data: dict, *keys: str) -> float:
         if number > 0:
             return number
     return 0.0
+
+
+def _asset_class_from_quote(symbol: str, quote_type: str) -> str:
+    normalized = quote_type.upper()
+    if normalized in {"INDEX", "INDEXES"} or symbol.startswith("^"):
+        return "INDEX"
+    if "ETF" in normalized:
+        return "ETF"
+    if "CRYPTO" in normalized or "-USD" in symbol:
+        return "CRYPTO"
+    if symbol.endswith(".SA") or any(char.isdigit() for char in symbol):
+        return "BR_STOCK"
+    return "US_STOCK"
+
+
+def _currency_from_symbol(symbol: str) -> str:
+    if symbol.endswith(".SA"):
+        return "BRL"
+    return "USD"

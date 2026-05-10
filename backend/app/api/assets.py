@@ -6,8 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import get_current_user
 from app.db.models import Asset, User
 from app.db.session import get_db
+from app.services.market_data.yahoo_provider import YahooFinanceProvider
 
 router = APIRouter(prefix="/assets", tags=["assets"])
+provider = YahooFinanceProvider()
 
 
 class AssetCreate(BaseModel):
@@ -26,6 +28,7 @@ async def search_assets(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
+    local_results: list[dict] = []
     result = await db.execute(
         select(Asset).where(
             or_(
@@ -35,7 +38,29 @@ async def search_assets(
         ).limit(20)
     )
     assets = result.scalars().all()
-    return [{"id": a.id, "ticker": a.ticker, "name": a.name, "asset_class": a.asset_class, "currency": a.currency} for a in assets]
+    for a in assets:
+        local_results.append({
+            "id": a.id,
+            "ticker": a.ticker,
+            "yahoo_symbol": a.yahoo_symbol or a.ticker,
+            "name": a.name,
+            "asset_class": a.asset_class,
+            "currency": a.currency,
+            "exchange": a.exchange,
+            "quote_type": "LOCAL",
+            "source": "local",
+        })
+
+    yahoo_results = await provider.search(q, limit=12)
+    seen = {item["ticker"] for item in local_results}
+    merged = local_results[:]
+    for item in yahoo_results:
+        if item["ticker"] in seen:
+            continue
+        seen.add(item["ticker"])
+        merged.append(item)
+
+    return merged[:20]
 
 
 @router.get("/{asset_id}")

@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useState, useMemo } from "react";
-import type { CSSProperties } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { getHoldings, getPortfolioSummary } from "@/lib/api";
+import type { CSSProperties, FormEvent } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createTransaction, getHoldings, getPortfolioSummary } from "@/lib/api";
 import { Reveal } from "@/components/ui/reveal";
 import { Sparkline } from "@/components/ui/sparkline";
 import { CLASS_COLOR } from "@/components/ui/class-chip";
@@ -37,13 +37,34 @@ function formatPct(v: number): string {
 export default function HoldingsPage() {
   const [filter, setFilter] = useState<AssetClass | "ALL">("ALL");
   const [sort, setSort] = useState<{ key: string; dir: number }>({ key: "value", dir: -1 });
+  const [ticker, setTicker] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [price, setPrice] = useState("");
+  const [currency, setCurrency] = useState<"BRL" | "USD">("BRL");
+  const [formError, setFormError] = useState("");
   const displayCurrency = useCurrencyStore((s) => s.currency);
+  const queryClient = useQueryClient();
 
   const { data: holdings = [], isLoading } = useQuery({
     queryKey: ["holdings"],
     queryFn: getHoldings,
   });
   const { data: summary } = useQuery({ queryKey: ["portfolio-summary"], queryFn: getPortfolioSummary });
+  const addPosition = useMutation({
+    mutationFn: createTransaction,
+    onSuccess: async () => {
+      setTicker("");
+      setQuantity("");
+      setPrice("");
+      setFormError("");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["holdings"] }),
+        queryClient.invalidateQueries({ queryKey: ["portfolio-summary"] }),
+        queryClient.invalidateQueries({ queryKey: ["portfolio-history"] }),
+        queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+      ]);
+    },
+  });
 
   const usdBrl = summary?.usd_to_brl ?? 5.70;
   const toDisplay = useCallback(
@@ -95,6 +116,40 @@ export default function HoldingsPage() {
     padding: 24,
   };
 
+  const inputStyle: CSSProperties = {
+    width: "100%",
+    minWidth: 0,
+    height: 38,
+    borderRadius: 7,
+    border: "1px solid rgba(255,255,255,0.1)",
+    background: "#1a1814",
+    color: "#f5f1e8",
+    padding: "0 10px",
+    fontFamily: "JetBrains Mono, monospace",
+    fontSize: 13,
+    outline: "none",
+  };
+
+  const handleAddPosition = (e: FormEvent) => {
+    e.preventDefault();
+    const cleanTicker = ticker.trim().toUpperCase();
+    const parsedQuantity = Number(quantity);
+    const parsedPrice = Number(price);
+
+    if (!cleanTicker || !Number.isFinite(parsedQuantity) || parsedQuantity <= 0 || !Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+      setFormError("Enter a ticker, quantity, and price.");
+      return;
+    }
+
+    addPosition.mutate({
+      ticker: cleanTicker,
+      transaction_type: "BUY",
+      quantity: parsedQuantity,
+      price: parsedPrice,
+      currency,
+    });
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       {/* HEADER */}
@@ -107,6 +162,52 @@ export default function HoldingsPage() {
             Portfolio breakdown
           </h1>
         </div>
+      </Reveal>
+
+      <Reveal delay={75}>
+        <form onSubmit={handleAddPosition} style={{ ...PANEL, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(160px, 100%), 1fr))", gap: 12, alignItems: "end" }}>
+          <label style={{ display: "grid", gap: 6 }}>
+            <span style={{ color: "#8892a4", fontSize: 11, fontWeight: 600, letterSpacing: "0.05em" }}>Ticker</span>
+            <input value={ticker} onChange={(e) => setTicker(e.target.value.toUpperCase())} placeholder="AAPL" style={inputStyle} />
+          </label>
+          <label style={{ display: "grid", gap: 6 }}>
+            <span style={{ color: "#8892a4", fontSize: 11, fontWeight: 600, letterSpacing: "0.05em" }}>Quantity</span>
+            <input value={quantity} onChange={(e) => setQuantity(e.target.value)} type="number" min="0" step="any" placeholder="10" style={inputStyle} />
+          </label>
+          <label style={{ display: "grid", gap: 6 }}>
+            <span style={{ color: "#8892a4", fontSize: 11, fontWeight: 600, letterSpacing: "0.05em" }}>Buy price</span>
+            <input value={price} onChange={(e) => setPrice(e.target.value)} type="number" min="0" step="any" placeholder="185.50" style={inputStyle} />
+          </label>
+          <label style={{ display: "grid", gap: 6 }}>
+            <span style={{ color: "#8892a4", fontSize: 11, fontWeight: 600, letterSpacing: "0.05em" }}>Currency</span>
+            <select value={currency} onChange={(e) => setCurrency(e.target.value as "BRL" | "USD")} style={inputStyle}>
+              <option value="BRL">BRL</option>
+              <option value="USD">USD</option>
+            </select>
+          </label>
+          <button
+            type="submit"
+            disabled={addPosition.isPending}
+            style={{
+              height: 38,
+              borderRadius: 7,
+              border: "1px solid rgba(201,247,111,0.25)",
+              background: addPosition.isPending ? "rgba(201,247,111,0.45)" : "#c9f76f",
+              color: "#0c0b08",
+              fontWeight: 700,
+              padding: "0 16px",
+              cursor: addPosition.isPending ? "not-allowed" : "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {addPosition.isPending ? "Adding..." : "Add position"}
+          </button>
+          {(formError || addPosition.isError) && (
+            <div style={{ gridColumn: "1 / -1", color: "#e07b6c", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
+              {formError || "Could not add this position."}
+            </div>
+          )}
+        </form>
       </Reveal>
 
       {/* FILTER TABS */}

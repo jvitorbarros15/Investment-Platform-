@@ -45,6 +45,9 @@ Thumbs.db
 # vscode
 .vscode
 
+# Claude
+.claude
+
 # Docker
 *.log
 
