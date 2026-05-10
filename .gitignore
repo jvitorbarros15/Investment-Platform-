@@ -1,6 +1,7 @@
 # Markdown docs (ignore project docs, keep README)
 *.md
 !README.md
+!docs/**/*.md
 
 # Python
 __pycache__/
