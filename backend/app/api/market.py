@@ -65,6 +65,8 @@ async def get_exchange_rate():
     """
     try:
         quote = await provider.get_quote("USDBRL=X")
+    except HTTPException:
+        raise  # Let HTTP exceptions pass through
     except Exception as e:
         logger.error(f"Failed to fetch exchange rate from provider: {type(e).__name__}: {e}")
         raise HTTPException(status_code=503, detail="Exchange rate unavailable")
