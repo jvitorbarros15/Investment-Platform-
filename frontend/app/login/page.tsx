@@ -3,13 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { TrendingUp, Eye, EyeOff, Lock, Mail } from "lucide-react";
-import { login } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth-store";
+import { getSupabase } from "@/lib/supabase";
 
 export default function LoginPage() {
   const router = useRouter();
-  const setToken = useAuthStore((s) => s.setToken);
-  const [email, setEmail] = useState("admin@invest.local");
+  const setSession = useAuthStore((s) => s.setSession);
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -20,8 +20,12 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const { access_token } = await login(email, password);
-      setToken(access_token);
+      const { data, error } = await getSupabase().auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error || !data.session) throw error;
+      setSession(data.session.access_token, data.user?.email ?? email);
       router.replace("/");
     } catch {
       setError("Invalid email or password.");

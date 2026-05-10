@@ -1,4 +1,7 @@
 import logging
+from asyncio import Lock
+from datetime import datetime, timedelta, timezone
+
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from app.db.session import AsyncSessionLocal
@@ -8,9 +11,44 @@ from app.services.market_data.yahoo_provider import YahooFinanceProvider
 logger = logging.getLogger(__name__)
 provider = YahooFinanceProvider()
 _usd_to_brl: float = 5.70  # Module-level cache for exchange rate
+_refresh_lock = Lock()
+_last_refresh_at: datetime | None = None
+_last_refresh_result: dict | None = None
+_refresh_cooldown = timedelta(minutes=5)
 
-async def refresh_all_portfolios() -> dict:
+async def refresh_all_portfolios(force: bool = False) -> dict:
     """Refresh prices for all holdings across all portfolios."""
+    global _last_refresh_at, _last_refresh_result
+
+    now = datetime.now(timezone.utc)
+    if (
+        not force
+        and _last_refresh_at
+        and _last_refresh_result
+        and now - _last_refresh_at < _refresh_cooldown
+    ):
+        return {
+            **_last_refresh_result,
+            "cached": True,
+            "message": "Using recent live price refresh result",
+        }
+
+    if _refresh_lock.locked():
+        return {
+            **(_last_refresh_result or {"attempted": 0, "updated": 0, "skipped": 0}),
+            "cached": True,
+            "message": "Live price refresh already in progress",
+        }
+
+    async with _refresh_lock:
+        result = await _refresh_all_portfolios_uncached()
+        _last_refresh_at = datetime.now(timezone.utc)
+        _last_refresh_result = result
+        return result
+
+
+async def _refresh_all_portfolios_uncached() -> dict:
+    """Run the actual provider-backed refresh."""
     async with AsyncSessionLocal() as db:
         result = await db.execute(
             select(Holding)
@@ -67,7 +105,13 @@ async def refresh_all_portfolios() -> dict:
 
         await db.commit()
         logger.info(f"Refresh complete: {updated} updated, {skipped} skipped")
-        return {"updated": updated, "message": f"Refreshed {updated} holdings"}
+        return {
+            "attempted": len(holdings),
+            "updated": updated,
+            "skipped": skipped,
+            "cached": False,
+            "message": f"Refreshed {updated} holdings",
+        }
 
 async def refresh_exchange_rate() -> dict:
     """Refresh USD/BRL exchange rate from Yahoo Finance."""

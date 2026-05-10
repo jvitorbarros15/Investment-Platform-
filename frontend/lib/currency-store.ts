@@ -8,7 +8,7 @@ interface CurrencyState {
 
 export const useCurrencyStore = create<CurrencyState>((set) => ({
   currency: "BRL",
-  setCurrency: (currency) => {
+  setCurrency: (currency: Currency) => {
     if (typeof window !== "undefined") localStorage.setItem("invest_currency", currency);
     set({ currency });
   },

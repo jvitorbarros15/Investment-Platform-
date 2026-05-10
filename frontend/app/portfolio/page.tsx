@@ -3,7 +3,7 @@
 import { useCallback, useState, useMemo } from "react";
 import type { CSSProperties } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getHoldings } from "@/lib/api";
+import { getHoldings, getPortfolioSummary } from "@/lib/api";
 import { Reveal } from "@/components/ui/reveal";
 import { Sparkline } from "@/components/ui/sparkline";
 import { CLASS_COLOR } from "@/components/ui/class-chip";
@@ -43,8 +43,9 @@ export default function HoldingsPage() {
     queryKey: ["holdings"],
     queryFn: getHoldings,
   });
+  const { data: summary } = useQuery({ queryKey: ["portfolio-summary"], queryFn: getPortfolioSummary });
 
-  const usdBrl = 5.70;
+  const usdBrl = summary?.usd_to_brl ?? 5.70;
   const toDisplay = useCallback(
     (value: number, currency: "BRL" | "USD") => convertCurrency(value, currency, displayCurrency, usdBrl),
     [displayCurrency, usdBrl]

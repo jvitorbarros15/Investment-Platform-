@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { refreshPrices } from "@/lib/api";
 import { useCurrencyStore } from "@/lib/currency-store";
 import type { Currency } from "@/lib/types";
 
 export function Topbar() {
+  const queryClient = useQueryClient();
   const [now, setNow] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const currency = useCurrencyStore((s) => s.currency);
@@ -23,6 +25,11 @@ export function Topbar() {
     setIsRefreshing(true);
     try {
       await refreshPrices();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["portfolio-summary"] }),
+        queryClient.invalidateQueries({ queryKey: ["holdings"] }),
+        queryClient.invalidateQueries({ queryKey: ["portfolio-history"] }),
+      ]);
     } catch (err) {
       console.error("Price refresh failed:", err);
     } finally {

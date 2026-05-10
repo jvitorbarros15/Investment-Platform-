@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getPortfolioSummary, getHoldings, getPortfolioHistory, refreshPrices } from "@/lib/api";
+import { getPortfolioSummary, getHoldings, getPortfolioHistory } from "@/lib/api";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { Reveal } from "@/components/ui/reveal";
 import { TickPulse } from "@/components/ui/tick-pulse";
@@ -35,8 +35,6 @@ export default function Dashboard() {
     const i = setInterval(() => setTick(t => t + 1), 3500);
     return () => clearInterval(i);
   }, []);
-
-  useEffect(() => { refreshPrices().catch(() => {}); }, []);
 
   const { data: summary, isLoading: sl } = useQuery({ queryKey: ["portfolio-summary"], queryFn: getPortfolioSummary });
   const { data: holdings = [], isLoading: hl } = useQuery({ queryKey: ["holdings"], queryFn: getHoldings });

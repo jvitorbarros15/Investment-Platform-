@@ -1,24 +1,28 @@
 import { create } from "zustand";
+import type { StateCreator } from "zustand/vanilla";
+import { getSupabase } from "./supabase";
 
 interface AuthState {
   token: string | null;
-  setToken: (token: string) => void;
-  logout: () => void;
+  email: string | null;
+  initialized: boolean;
+  setSession: (token: string | null, email?: string | null) => void;
+  setInitialized: (initialized: boolean) => void;
+  logout: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+const authStoreCreator: StateCreator<AuthState> = (set) => ({
   token: null,
-  setToken: (token) => {
-    if (typeof window !== "undefined") localStorage.setItem("invest_token", token);
-    set({ token });
+  email: null,
+  initialized: false,
+  setSession: (token, email = null) => {
+    set({ token, email });
   },
-  logout: () => {
-    if (typeof window !== "undefined") localStorage.removeItem("invest_token");
-    set({ token: null });
+  setInitialized: (initialized) => set({ initialized }),
+  logout: async () => {
+    await getSupabase().auth.signOut();
+    set({ token: null, email: null });
   },
-}));
+});
 
-if (typeof window !== "undefined") {
-  const stored = localStorage.getItem("invest_token");
-  if (stored) useAuthStore.setState({ token: stored });
-}
+export const useAuthStore = create<AuthState>(authStoreCreator);
