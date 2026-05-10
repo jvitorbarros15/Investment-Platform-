@@ -1,22 +1,27 @@
 "use client";
 
 import { useAuthStore } from "@/lib/auth-store";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
+  const initialized = useAuthStore((s) => s.initialized);
   const router = useRouter();
+  const pathname = usePathname();
+  const isLogin = pathname.startsWith("/login");
 
   useEffect(() => {
-    if (!token && !window.location.pathname.startsWith("/login")) {
+    if (initialized && !token && !isLogin) {
       router.push("/login");
     }
-  }, [token, router]);
+  }, [initialized, isLogin, token, router]);
 
-  if (!token) {
+  if (isLogin) return <>{children}</>;
+
+  if (!initialized || !token) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#0c0b08" }}>
         <div style={{ textAlign: "center" }}>

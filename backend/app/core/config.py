@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic_settings import BaseSettings
 
 
@@ -9,9 +11,11 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days
     ENVIRONMENT: str = "development"
     USD_TO_BRL: float = 5.70
+    SUPABASE_URL: Optional[str] = None
+    SUPABASE_PUBLISHABLE_KEY: Optional[str] = None
 
     class Config:
-        env_file = ".env"
+        env_file = ("backend/.env", ".env")
 
 
 settings = Settings()
