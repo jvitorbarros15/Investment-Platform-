@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -59,19 +59,24 @@ async def get_exchange_rate():
     """
     Fetch current USDBRL exchange rate from Yahoo Finance.
     Returns the price of USDBRL=X ticker (1 USD = X BRL).
+
+    Note: This endpoint is intentionally public (no authentication required)
+    to support public-facing market data displays.
     """
     try:
         quote = await provider.get_quote("USDBRL=X")
-        if not quote:
-            raise HTTPException(status_code=503, detail="Exchange rate unavailable")
-        return {
-            "rate": quote.get("price"),
-            "symbol": "USDBRL",
-            "updated_at": datetime.utcnow().isoformat() + "Z",
-        }
     except Exception as e:
-        logger.error(f"Failed to fetch exchange rate: {e}")
+        logger.error(f"Failed to fetch exchange rate from provider: {type(e).__name__}: {e}")
         raise HTTPException(status_code=503, detail="Exchange rate unavailable")
+
+    if not quote:
+        raise HTTPException(status_code=503, detail="Exchange rate unavailable")
+
+    return {
+        "rate": quote.get("price"),
+        "symbol": "USDBRL",
+        "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    }
 
 
 @router.post("/refresh")
