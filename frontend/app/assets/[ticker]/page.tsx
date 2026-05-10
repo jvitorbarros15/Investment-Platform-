@@ -1,148 +1,177 @@
 "use client";
 
-import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import Link from "next/link";
 import { getAssetDetail, getAssetHistory, getHoldings } from "@/lib/api";
-import { PortfolioLineChart } from "@/components/charts/PortfolioLineChart";
-import { ClassChip, CLASS_COLOR } from "@/components/ui/class-chip";
-import { Reveal } from "@/components/ui/reveal";
-import type { Holding } from "@/lib/types";
+import { useCurrencyStore } from "@/lib/currency-store";
+import { StockQuote, Holding } from "@/lib/types";
+import { StockFundamentals } from "@/components/stock/StockFundamentals";
+import { StockPosition } from "@/components/stock/StockPosition";
+import { StockChart } from "@/components/stock/StockChart";
 
-function formatPct(v: number): string {
-  return (v * 100).toFixed(2) + "%";
+interface HistoryPoint {
+  date: string;
+  close: number;
+  volume?: number;
 }
 
 export default function AssetDetailPage() {
   const params = useParams();
-  const router = useRouter();
-  const ticker = decodeURIComponent(params.ticker as string);
-  const [range, setRange] = useState("6M");
+  const ticker = params.ticker as string;
+  const currency = useCurrencyStore((state) => state.currency);
+  const exchangeRate = useCurrencyStore((state) => state.exchangeRate);
+  const fetchRate = useCurrencyStore((state) => state.fetchRate);
 
-  const { data: holdings = [] } = useQuery({ queryKey: ["holdings"], queryFn: getHoldings });
-  const { data: quote } = useQuery({ queryKey: ["asset-detail", ticker], queryFn: () => getAssetDetail(ticker) });
-  const { data: history = [] } = useQuery({
-    queryKey: ["asset-history", ticker, range],
-    queryFn: () => getAssetHistory(ticker, range === "1M" ? "30d" : range === "3M" ? "90d" : range === "6M" ? "180d" : "365d"),
-  });
+  const [quote, setQuote] = useState<StockQuote | null>(null);
+  const [history, setHistory] = useState<HistoryPoint[]>([]);
+  const [holding, setHolding] = useState<Holding | null>(null);
+  const [period, setPeriod] = useState<string>("365d");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [rateLoading, setRateLoading] = useState(false);
 
-  const holding = holdings.find((h: Holding) => h.ticker === ticker);
-  const assetClass = holding?.asset_class || (ticker.startsWith("^") ? "INDEX" : ticker.endsWith(".SA") ? "BR_STOCK" : "US_STOCK");
-  const color = CLASS_COLOR[assetClass] ?? "#9ec5fe";
-  const currentPrice = holding?.current_price || quote?.price || 0;
-  const displayName = holding?.name || quote?.name || ticker;
-  const displayCurrency = holding?.currency || quote?.currency || "USD";
-  const chartData = history.map((point: { date: string; close?: number; value?: number }) => ({
-    date: point.date,
-    value: point.close ?? point.value ?? 0,
-  }));
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [quoteData, historyData, holdings] = await Promise.all([
+          getAssetDetail(ticker),
+          getAssetHistory(ticker, period),
+          getHoldings(),
+        ]);
 
-  const panel = {
-    background: "#14130f",
-    border: "1px solid rgba(255,255,255,0.07)",
-    borderRadius: 14,
-    padding: 24,
+        setQuote(quoteData);
+        setHistory(historyData);
+        const found = holdings.find(
+          (h) => h.ticker.toUpperCase() === ticker.toUpperCase()
+        );
+        setHolding(found || null);
+      } catch (err) {
+        setError("Failed to load asset details");
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [ticker, period]);
+
+  const handleRefreshRate = async () => {
+    setRateLoading(true);
+    await fetchRate();
+    setRateLoading(false);
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
+        <div className="text-neutral-400">Loading...</div>
+      </div>
+    );
+  }
+
+  if (error || !quote) {
+    return (
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
+        <div className="text-red-500">{error || "Asset not found"}</div>
+      </div>
+    );
+  }
+
+  const displayPrice = quote.price * exchangeRate;
+  const displayColor = quote.change_1d_pct >= 0 ? "text-green-500" : "text-red-500";
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      <Reveal>
-        <button
-          onClick={() => router.back()}
-          style={{ background: "none", border: "none", color: "#8892a4", cursor: "pointer", fontSize: 14, fontFamily: "JetBrains Mono, monospace" }}
-        >
-          Back
-        </button>
-      </Reveal>
+    <div className="min-h-screen bg-neutral-950 text-white">
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Header */}
+        <Link href="/assets" className="text-neutral-400 hover:text-white mb-6">
+          ← Back
+        </Link>
 
-      <Reveal>
-        <section style={{ ...panel, background: `linear-gradient(135deg, ${color}15 0%, ${color}08 100%)` }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 20, flexWrap: "wrap" }}>
-            <div style={{ display: "flex", gap: 16, alignItems: "flex-start", minWidth: 0 }}>
-              <div style={{
-                width: 56,
-                height: 56,
-                borderRadius: 12,
-                background: color + "22",
-                color,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 20,
-                fontWeight: 600,
-                fontFamily: "JetBrains Mono, monospace",
-              }}>
-                {ticker.replace("^", "").slice(0, 2)}
-              </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
-                  <h1 style={{ fontFamily: "var(--font-display)", fontSize: 36, fontWeight: 600, color: "#f5f1e8", margin: 0 }}>
-                    {ticker}
-                  </h1>
-                  <ClassChip assetClass={assetClass} />
-                  {holding && (
-                    <span style={{ padding: "4px 8px", borderRadius: 6, background: "#c9f76f15", color: "#c9f76f", border: "1px solid #c9f76f30", fontSize: 11, fontWeight: 600 }}>
-                      In portfolio
-                    </span>
-                  )}
-                </div>
-                <div style={{ color: "#8892a4", fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {displayName} {holding?.sector ? `- ${holding.sector}` : ""}
-                </div>
-              </div>
+        <div className="flex items-start justify-between mb-8">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-3xl font-bold">{quote.symbol}</h1>
+              <span className="text-xs bg-neutral-800 px-2 py-1 rounded">
+                {quote.sector || "N/A"}
+              </span>
             </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 36, fontWeight: 600, color: "#f5f1e8", fontFamily: "JetBrains Mono, monospace", marginBottom: 8 }}>
-                {displayCurrency} {Number(currentPrice).toLocaleString("en-US", { maximumFractionDigits: 2 })}
-              </div>
-              <div style={{ color: (holding?.change_1d || 0) >= 0 ? "#7dd3a8" : "#e07b6c", fontFamily: "JetBrains Mono, monospace", fontSize: 14 }}>
-                {formatPct(holding?.change_1d || 0)} today
-              </div>
+            <p className="text-neutral-400 text-lg">{quote.name}</p>
+          </div>
+
+          <div className="text-right">
+            <div className="text-4xl font-bold mb-2">
+              {new Intl.NumberFormat("en-US", {
+                style: "currency",
+                currency: currency === "BRL" ? "BRL" : "USD",
+              }).format(displayPrice)}
+            </div>
+            <div className={`text-lg font-semibold ${displayColor}`}>
+              {quote.change_1d_pct >= 0 ? "+" : ""}
+              {quote.change_1d_pct.toFixed(2)}% today
             </div>
           </div>
-        </section>
-      </Reveal>
+        </div>
 
-      <Reveal delay={100}>
-        <section style={panel}>
-          <div style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <div>
-              <div style={{ color: "#8892a4", fontSize: 11, fontWeight: 600, letterSpacing: "0.05em", marginBottom: 4 }}>
-                Price history
-              </div>
-              <h3 style={{ color: "#f5f1e8", fontSize: 20, fontWeight: 600, margin: 0 }}>
-                {range} performance
-              </h3>
-            </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              {["1M", "3M", "6M", "1Y"].map((item) => (
-                <button
-                  key={item}
-                  onClick={() => setRange(item)}
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: 4,
-                    border: range === item ? "1px solid #c9f76f30" : "1px solid rgba(255,255,255,0.1)",
-                    background: range === item ? "rgba(201,247,111,0.1)" : "transparent",
-                    color: range === item ? "#c9f76f" : "#8892a4",
-                    fontSize: 12,
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    fontFamily: "JetBrains Mono, monospace",
-                  }}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          </div>
-          {chartData.length > 0 ? (
-            <PortfolioLineChart data={chartData} color={color} currency={displayCurrency === "BRL" ? "BRL" : "USD"} />
-          ) : (
-            <div style={{ color: "#8892a4", minHeight: 180, display: "flex", alignItems: "center" }}>No data available</div>
+        {/* Refresh Rate Button */}
+        <div className="mb-8 flex gap-2 items-center">
+          <button
+            onClick={handleRefreshRate}
+            disabled={rateLoading}
+            className="text-xs px-4 py-2 bg-neutral-800 hover:bg-neutral-700 rounded transition disabled:opacity-50"
+          >
+            {rateLoading ? "Refreshing..." : "🔄 Refresh Rate"}
+          </button>
+          {useCurrencyStore.getState().lastUpdated && (
+            <span className="text-xs text-neutral-500">
+              Rate: {useCurrencyStore.getState().lastUpdated?.toLocaleTimeString()}
+            </span>
           )}
-        </section>
-      </Reveal>
+        </div>
+
+        {/* Chart */}
+        <div className="mb-8">
+          <div className="flex gap-2 mb-4">
+            {["1m", "3m", "6m", "1y"].map((p) => {
+              const periodMap: Record<string, string> = {
+                "1m": "30d",
+                "3m": "90d",
+                "6m": "180d",
+                "1y": "365d",
+              };
+              return (
+                <button
+                  key={p}
+                  onClick={() => setPeriod(periodMap[p])}
+                  className={`px-3 py-1 text-sm rounded transition ${
+                    period === periodMap[p]
+                      ? "bg-blue-600"
+                      : "bg-neutral-800 hover:bg-neutral-700"
+                  }`}
+                >
+                  {p.toUpperCase()}
+                </button>
+              );
+            })}
+          </div>
+          <StockChart history={history} period={period} />
+        </div>
+
+        {/* Fundamentals */}
+        <div className="mb-8">
+          <StockFundamentals quote={quote} />
+        </div>
+
+        {/* Position */}
+        {holding && (
+          <div className="mb-8">
+            <StockPosition holding={holding} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
