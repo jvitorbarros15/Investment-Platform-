@@ -7,6 +7,7 @@ from .base import MarketDataProvider
 
 YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 YAHOO_SEARCH_URL = "https://query2.finance.yahoo.com/v1/finance/search"
+YAHOO_QUOTE_SUMMARY_URL = "https://query1.finance.yahoo.com/v11/finance/quoteSummary/{symbol}"
 
 
 class YahooFinanceProvider(MarketDataProvider):
@@ -52,72 +53,13 @@ class YahooFinanceProvider(MarketDataProvider):
         return results
 
     async def get_quote(self, symbol: str) -> dict:
-        # Try full yfinance first — required for fundamentals (PE, market cap, etc.)
-        # Fall back to chart API only if yfinance fails entirely.
-        try:
-            ticker = await asyncio.to_thread(yf.Ticker, symbol)
-            info = {}
-            fast_info = {}
+        # Primary: call Yahoo quoteSummary directly via httpx (same as chart API,
+        # bypasses yfinance's internal requests which fail in Docker).
+        summary = await _get_quote_summary(symbol)
+        if summary:
+            return {"symbol": symbol, **summary}
 
-            try:
-                fast_info = await asyncio.to_thread(lambda: dict(ticker.fast_info))
-            except Exception:
-                fast_info = {}
-
-            try:
-                info = await asyncio.to_thread(lambda: ticker.info)
-            except Exception:
-                info = {}
-
-            price = _first_number(
-                info,
-                "currentPrice",
-                "regularMarketPrice",
-                "previousClose",
-            ) or _first_number(
-                fast_info,
-                "last_price",
-                "lastPrice",
-                "regularMarketPrice",
-                "previousClose",
-            )
-
-            if not price:
-                hist = await asyncio.to_thread(lambda: ticker.history(period="5d"))
-                if not hist.empty:
-                    price = float(hist["Close"].dropna().iloc[-1])
-
-            if price:
-                # fast_info fallbacks for fields it reliably provides
-                def _sf(v):
-                    try:
-                        return float(v) if v is not None else None
-                    except (TypeError, ValueError):
-                        return None
-
-                return {
-                    "symbol": symbol,
-                    "price": float(price),
-                    "change_1d": info.get("regularMarketChange") or 0,
-                    "change_1d_pct": (info.get("regularMarketChangePercent") or 0) * 100,
-                    "currency": info.get("currency") or fast_info.get("currency", "USD"),
-                    "market_cap": info.get("marketCap") or _sf(fast_info.get("market_cap")),
-                    "dividend_yield": info.get("dividendYield"),
-                    "pe_ratio": info.get("trailingPE"),
-                    "forward_pe": info.get("forwardPE"),
-                    "price_to_book": info.get("priceToBook"),
-                    "eps": info.get("trailingEps"),
-                    "beta": info.get("beta"),
-                    "week_52_high": info.get("fiftyTwoWeekHigh") or _sf(fast_info.get("year_high")),
-                    "week_52_low": info.get("fiftyTwoWeekLow") or _sf(fast_info.get("year_low")),
-                    "sector": info.get("sector"),
-                    "industry": info.get("industry"),
-                    "name": info.get("longName") or info.get("shortName") or fast_info.get("display_name"),
-                }
-        except Exception:
-            pass
-
-        # Chart API fallback — no fundamentals, but at least gets price
+        # Fallback: chart API — price only, no fundamentals
         chart_quote = await _get_chart_quote(symbol)
         if chart_quote:
             return chart_quote
@@ -150,6 +92,62 @@ class YahooFinanceProvider(MarketDataProvider):
             return result
         except Exception:
             return []
+
+
+async def _get_quote_summary(symbol: str) -> dict:
+    """Fetch price + fundamentals from Yahoo quoteSummary API via httpx."""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                YAHOO_QUOTE_SUMMARY_URL.format(symbol=symbol),
+                params={"modules": "summaryDetail,defaultKeyStatistics,price,assetProfile"},
+                headers={"User-Agent": "Mozilla/5.0"},
+            )
+            response.raise_for_status()
+            payload = response.json()
+    except Exception:
+        return {}
+
+    result = (payload.get("quoteSummary") or {}).get("result") or []
+    if not result:
+        return {}
+
+    data = result[0]
+    summary = data.get("summaryDetail") or {}
+    key_stats = data.get("defaultKeyStatistics") or {}
+    price_info = data.get("price") or {}
+    asset_profile = data.get("assetProfile") or {}
+
+    def _raw(d: dict, key: str):
+        v = d.get(key)
+        if isinstance(v, dict):
+            return v.get("raw")
+        return v
+
+    price = _raw(price_info, "regularMarketPrice")
+    if not price:
+        return {}
+
+    change_pct_raw = _raw(price_info, "regularMarketChangePercent") or 0
+
+    return {
+        "price": float(price),
+        "change_1d": _raw(price_info, "regularMarketChange") or 0,
+        "change_1d_pct": float(change_pct_raw) * 100,
+        "currency": price_info.get("currency", "USD"),
+        "market_cap": _raw(summary, "marketCap"),
+        "dividend_yield": _raw(summary, "dividendYield"),
+        "pe_ratio": _raw(summary, "trailingPE"),
+        "forward_pe": _raw(key_stats, "forwardPE"),
+        "price_to_book": _raw(key_stats, "priceToBook"),
+        "eps": _raw(key_stats, "trailingEps"),
+        "beta": _raw(summary, "beta"),
+        "week_52_high": _raw(summary, "fiftyTwoWeekHigh"),
+        "week_52_low": _raw(summary, "fiftyTwoWeekLow"),
+        "sector": asset_profile.get("sector"),
+        "industry": asset_profile.get("industry"),
+        "name": price_info.get("longName") or price_info.get("shortName"),
+    }
 
 
 async def _get_chart_quote(symbol: str) -> dict:
