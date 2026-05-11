@@ -6,6 +6,7 @@ import Link from "next/link";
 import { getAssetDetail, getAssetHistory, getHoldings } from "@/lib/api";
 import { useCurrencyStore } from "@/lib/currency-store";
 import { StockQuote, Holding } from "@/lib/types";
+import { convertAmount } from "@/lib/utils/currency";
 import { StockFundamentals } from "@/components/stock/StockFundamentals";
 import { StockPosition } from "@/components/stock/StockPosition";
 import { StockChart } from "@/components/stock/StockChart";
@@ -85,7 +86,7 @@ export default function AssetDetailPage() {
     );
   }
 
-  const displayPrice = quote.price * exchangeRate;
+  const displayPrice = convertAmount(quote.price, quote.currency, currency, exchangeRate);
   const changePct = quote.change_1d_pct ?? 0;
   const displayColor = changePct >= 0 ? "text-green-500" : "text-red-500";
 
