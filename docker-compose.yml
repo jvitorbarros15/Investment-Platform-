@@ -48,7 +48,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3002:3000"
+      - "3000:3000"
     env_file:
       - ./frontend/.env.local
     environment:
