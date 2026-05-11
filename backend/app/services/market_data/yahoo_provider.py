@@ -87,7 +87,7 @@ class YahooFinanceProvider(MarketDataProvider):
                 if not hist.empty:
                     price = float(hist["Close"].dropna().iloc[-1])
 
-            if price:
+            if price and info:
                 return {
                     "symbol": symbol,
                     "price": float(price),
@@ -115,6 +115,13 @@ class YahooFinanceProvider(MarketDataProvider):
         if chart_quote:
             return chart_quote
 
+        return {}
+
+    async def get_price_only(self, symbol: str) -> dict:
+        """Fast price fetch using chart API only. No fundamentals."""
+        chart_quote = await _get_chart_quote(symbol)
+        if chart_quote:
+            return {"price": chart_quote.get("price"), "currency": chart_quote.get("currency", "USD")}
         return {}
 
     async def get_history(self, symbol: str, period: str = "1mo") -> list[dict]:

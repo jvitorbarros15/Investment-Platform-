@@ -44,7 +44,7 @@ async def get_indexes(
 ):
     results = []
     for item in MAIN_INDEXES:
-        quote = await provider.get_quote(item["symbol"])
+        quote = await provider.get_price_only(item["symbol"])
         results.append({
             **item,
             "ticker": item["symbol"],
