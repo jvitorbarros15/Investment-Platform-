@@ -21,9 +21,9 @@ export function StockPosition({ holding }: StockPositionProps) {
     }).format(converted);
   };
 
-  const plColor = holding.unrealized_gain >= 0 ? "text-green-500" : "text-red-500";
+  const plColor = (holding.unrealized_gain ?? 0) >= 0 ? "text-green-500" : "text-red-500";
   const plBgColor =
-    holding.unrealized_gain >= 0 ? "bg-green-950" : "bg-red-950";
+    (holding.unrealized_gain ?? 0) >= 0 ? "bg-green-950" : "bg-red-950";
 
   return (
     <div className="bg-neutral-950 rounded-lg p-6 border border-neutral-800">
@@ -54,7 +54,7 @@ export function StockPosition({ holding }: StockPositionProps) {
         <div>
           <div className="text-neutral-500 text-xs mb-1">Unrealized P/L</div>
           <div className={`font-medium text-lg ${plColor}`}>
-            {formatCurrency(holding.unrealized_gain)}
+            {formatCurrency(holding.unrealized_gain ?? 0)}
           </div>
         </div>
 
@@ -77,8 +77,8 @@ export function StockPosition({ holding }: StockPositionProps) {
       <div className={`mt-4 p-3 rounded ${plBgColor}`}>
         <div className="text-xs text-neutral-400 mb-1">1-Day Change</div>
         <div className={`font-semibold text-sm ${plColor}`}>
-          {holding.change_1d >= 0 ? "+" : ""}
-          {formatCurrency(holding.change_1d)}
+          {(holding.change_1d ?? 0) >= 0 ? "+" : ""}
+          {formatCurrency(holding.change_1d ?? 0)}
         </div>
       </div>
     </div>

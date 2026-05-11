@@ -60,8 +60,13 @@ export default function AssetDetailPage() {
 
   const handleRefreshRate = async () => {
     setRateLoading(true);
-    await fetchRate();
-    setRateLoading(false);
+    try {
+      await fetchRate();
+    } catch (error) {
+      console.error("Failed to refresh rate:", error);
+    } finally {
+      setRateLoading(false);
+    }
   };
 
   if (loading) {
