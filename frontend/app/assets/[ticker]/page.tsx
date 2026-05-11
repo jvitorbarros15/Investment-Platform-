@@ -86,7 +86,8 @@ export default function AssetDetailPage() {
   }
 
   const displayPrice = quote.price * exchangeRate;
-  const displayColor = quote.change_1d_pct >= 0 ? "text-green-500" : "text-red-500";
+  const changePct = quote.change_1d_pct ?? 0;
+  const displayColor = changePct >= 0 ? "text-green-500" : "text-red-500";
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white">
@@ -115,8 +116,8 @@ export default function AssetDetailPage() {
               }).format(displayPrice)}
             </div>
             <div className={`text-lg font-semibold ${displayColor}`}>
-              {quote.change_1d_pct >= 0 ? "+" : ""}
-              {quote.change_1d_pct.toFixed(2)}% today
+              {changePct >= 0 ? "+" : ""}
+              {changePct.toFixed(2)}% today
             </div>
           </div>
         </div>
