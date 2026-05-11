@@ -6,12 +6,15 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getMarketIndexes, refreshPrices, searchAssets } from "@/lib/api";
 import { useCurrencyStore } from "@/lib/currency-store";
 import type { AssetSearchResult, Currency } from "@/lib/types";
+import { isNYSEOpen, isB3Open } from "@/lib/utils/market-hours";
+import { QuickAddModal } from "@/components/layout/QuickAddModal";
 
 export function Topbar() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [now, setNow] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -53,6 +56,8 @@ export function Topbar() {
   const hasSearch = debouncedQuery.length >= 2;
   const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
   const dateStr = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  const nyseOpen = isNYSEOpen(now);
+  const b3Open = isB3Open(now);
 
   const openAsset = (symbol: string) => {
     setSearchOpen(false);
@@ -84,10 +89,35 @@ export function Topbar() {
       padding: "0 32px", gap: 24, position: "sticky", top: 0, zIndex: 30,
     }}>
       <div className="app-topbar-status" style={{ display: "flex", alignItems: "center", gap: 16, flex: 1 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#7dd3a8", animation: "marketPulse 2s infinite", display: "inline-block" }} />
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.12em", color: "#7dd3a8" }}>MARKETS OPEN</span>
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "rgba(245,241,232,0.5)" }}>{timeStr} <span style={{ opacity: 0.5 }}>EST</span></span>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {/* NYSE pill */}
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{
+              width: 7, height: 7, borderRadius: "50%", display: "inline-block",
+              background: nyseOpen ? "#7dd3a8" : "rgba(245,241,232,0.15)",
+              animation: nyseOpen ? "marketPulse 2s infinite" : "none",
+            }} />
+            <span style={{
+              fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.12em",
+              color: nyseOpen ? "#7dd3a8" : "rgba(245,241,232,0.35)",
+            }}>NYSE</span>
+          </div>
+          {/* B3 pill */}
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{
+              width: 7, height: 7, borderRadius: "50%", display: "inline-block",
+              background: b3Open ? "#7dd3a8" : "rgba(245,241,232,0.15)",
+              animation: b3Open ? "marketPulse 2s infinite" : "none",
+            }} />
+            <span style={{
+              fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: "0.12em",
+              color: b3Open ? "#7dd3a8" : "rgba(245,241,232,0.35)",
+            }}>B3</span>
+          </div>
+          {/* Time */}
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "rgba(245,241,232,0.5)" }}>
+            {timeStr} <span style={{ opacity: 0.5 }}>EST</span>
+          </span>
         </div>
         <span className="app-topbar-date" style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "rgba(245,241,232,0.35)" }}>{dateStr}</span>
       </div>
@@ -217,17 +247,18 @@ export function Topbar() {
             }}>{c}</button>
           ))}
         </div>
-        <button onClick={handleRefresh} disabled={isRefreshing} style={{
+        <button onClick={handleRefresh} disabled={isRefreshing} title="Refresh portfolio prices" style={{
           width: 32, height: 32, borderRadius: 6, border: "1px solid rgba(255,255,255,0.08)",
           background: "#14130f", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-          opacity: isRefreshing ? 0.5 : 1,
+          opacity: isRefreshing ? 0.6 : 1,
         }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(245,241,232,0.6)" strokeWidth="2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(245,241,232,0.6)" strokeWidth="2"
+            style={{ animation: isRefreshing ? "topbarSpin 0.8s linear infinite" : "none" }}>
             <path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-7-3.3M3 12a9 9 0 0 1 9-9 9 9 0 0 1 7 3.3" />
             <path d="M21 3v6h-6M3 21v-6h6" />
           </svg>
         </button>
-        <button style={{
+        <button onClick={() => setQuickAddOpen(true)} title="Add transaction" style={{
           width: 32, height: 32, borderRadius: 6, border: "1px solid rgba(255,255,255,0.08)",
           background: "#14130f", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
         }}>
@@ -235,6 +266,7 @@ export function Topbar() {
             <path d="M12 5v14M5 12h14" />
           </svg>
         </button>
+        {quickAddOpen && <QuickAddModal onClose={() => setQuickAddOpen(false)} />}
       </div>
     </header>
   );
