@@ -87,25 +87,32 @@ class YahooFinanceProvider(MarketDataProvider):
                 if not hist.empty:
                     price = float(hist["Close"].dropna().iloc[-1])
 
-            if price and info:
+            if price:
+                # fast_info fallbacks for fields it reliably provides
+                def _sf(v):
+                    try:
+                        return float(v) if v is not None else None
+                    except (TypeError, ValueError):
+                        return None
+
                 return {
                     "symbol": symbol,
                     "price": float(price),
                     "change_1d": info.get("regularMarketChange") or 0,
                     "change_1d_pct": (info.get("regularMarketChangePercent") or 0) * 100,
                     "currency": info.get("currency") or fast_info.get("currency", "USD"),
-                    "market_cap": info.get("marketCap"),
+                    "market_cap": info.get("marketCap") or _sf(fast_info.get("market_cap")),
                     "dividend_yield": info.get("dividendYield"),
                     "pe_ratio": info.get("trailingPE"),
                     "forward_pe": info.get("forwardPE"),
                     "price_to_book": info.get("priceToBook"),
                     "eps": info.get("trailingEps"),
                     "beta": info.get("beta"),
-                    "week_52_high": info.get("fiftyTwoWeekHigh"),
-                    "week_52_low": info.get("fiftyTwoWeekLow"),
+                    "week_52_high": info.get("fiftyTwoWeekHigh") or _sf(fast_info.get("year_high")),
+                    "week_52_low": info.get("fiftyTwoWeekLow") or _sf(fast_info.get("year_low")),
                     "sector": info.get("sector"),
                     "industry": info.get("industry"),
-                    "name": info.get("longName") or info.get("shortName"),
+                    "name": info.get("longName") or info.get("shortName") or fast_info.get("display_name"),
                 }
         except Exception:
             pass
