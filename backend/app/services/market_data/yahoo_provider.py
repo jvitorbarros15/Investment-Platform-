@@ -1,13 +1,42 @@
 import asyncio
 
 import httpx
-import yfinance as yf
 
 from .base import MarketDataProvider
 
 YAHOO_CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 YAHOO_SEARCH_URL = "https://query2.finance.yahoo.com/v1/finance/search"
-YAHOO_QUOTE_SUMMARY_URL = "https://query1.finance.yahoo.com/v11/finance/quoteSummary/{symbol}"
+YAHOO_QUOTE_SUMMARY_URL = "https://query1.finance.yahoo.com/v10/finance/quoteSummary/{symbol}"
+YAHOO_CRUMB_URL = "https://query1.finance.yahoo.com/v1/test/getcrumb"
+YAHOO_CONSENT_URL = "https://finance.yahoo.com/"
+
+_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+}
+
+# Module-level crumb cache — fetched once per process lifetime
+_crumb: str | None = None
+_crumb_cookies: dict = {}
+
+
+async def _ensure_crumb() -> tuple[str, dict]:
+    global _crumb, _crumb_cookies
+    if _crumb:
+        return _crumb, _crumb_cookies
+    try:
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            r = await client.get(YAHOO_CONSENT_URL, headers=_HEADERS)
+            cookies = dict(r.cookies)
+            r2 = await client.get(YAHOO_CRUMB_URL, headers=_HEADERS, cookies=cookies)
+            r2.raise_for_status()
+            _crumb = r2.text.strip()
+            _crumb_cookies = cookies
+    except Exception:
+        _crumb = None
+        _crumb_cookies = {}
+    return _crumb or "", _crumb_cookies
 
 
 class YahooFinanceProvider(MarketDataProvider):
@@ -96,12 +125,16 @@ class YahooFinanceProvider(MarketDataProvider):
 
 async def _get_quote_summary(symbol: str) -> dict:
     """Fetch price + fundamentals from Yahoo quoteSummary API via httpx."""
+    crumb, cookies = await _ensure_crumb()
+    if not crumb:
+        return {}
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(
                 YAHOO_QUOTE_SUMMARY_URL.format(symbol=symbol),
-                params={"modules": "summaryDetail,defaultKeyStatistics,price,assetProfile"},
-                headers={"User-Agent": "Mozilla/5.0"},
+                params={"modules": "summaryDetail,defaultKeyStatistics,price,assetProfile", "crumb": crumb},
+                headers=_HEADERS,
+                cookies=cookies,
             )
             response.raise_for_status()
             payload = response.json()
