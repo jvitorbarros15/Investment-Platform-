@@ -31,6 +31,11 @@ export const useCurrencyStore = create<CurrencyStore>()(
     {
       name: "invest_currency",
       partialize: (state) => ({ currency: state.currency }),
+      onRehydrateStorage: () => (state) => {
+        if (typeof window !== "undefined") {
+          state?.fetchRate();
+        }
+      },
     }
   )
 );

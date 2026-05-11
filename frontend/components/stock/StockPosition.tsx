@@ -3,6 +3,7 @@
 import React from "react";
 import { Holding } from "@/lib/types";
 import { useCurrencyStore } from "@/lib/currency-store";
+import { convertAmount } from "@/lib/utils/currency";
 
 interface StockPositionProps {
   holding: Holding;
@@ -13,7 +14,7 @@ export function StockPosition({ holding }: StockPositionProps) {
   const exchangeRate = useCurrencyStore((state) => state.exchangeRate);
 
   const formatCurrency = (value: number): string => {
-    const converted = value * exchangeRate;
+    const converted = convertAmount(value, holding.currency, currency, exchangeRate);
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: currency === "BRL" ? "BRL" : "USD",
