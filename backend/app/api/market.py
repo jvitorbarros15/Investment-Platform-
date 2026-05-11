@@ -1,3 +1,6 @@
+import logging
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.core.security import get_current_user
@@ -7,6 +10,7 @@ from app.services.price_refresh_service import refresh_all_portfolios, refresh_e
 
 router = APIRouter(prefix="/market", tags=["market"])
 provider = YahooFinanceProvider()
+logger = logging.getLogger(__name__)
 
 MAIN_INDEXES = [
     {"symbol": "^GSPC", "name": "S&P 500", "region": "United States"},
@@ -40,7 +44,7 @@ async def get_indexes(
 ):
     results = []
     for item in MAIN_INDEXES:
-        quote = await provider.get_quote(item["symbol"])
+        quote = await provider.get_price_only(item["symbol"])
         results.append({
             **item,
             "ticker": item["symbol"],
@@ -48,6 +52,33 @@ async def get_indexes(
             "currency": quote.get("currency") if quote else None,
         })
     return results
+
+
+@router.get("/exchange-rate")
+async def get_exchange_rate():
+    """
+    Fetch current USDBRL exchange rate from Yahoo Finance.
+    Returns the price of USDBRL=X ticker (1 USD = X BRL).
+
+    Note: This endpoint is intentionally public (no authentication required)
+    to support public-facing market data displays.
+    """
+    try:
+        quote = await provider.get_quote("USDBRL=X")
+    except HTTPException:
+        raise  # Let HTTP exceptions pass through
+    except Exception as e:
+        logger.error(f"Failed to fetch exchange rate from provider: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=503, detail="Exchange rate unavailable")
+
+    if not quote:
+        raise HTTPException(status_code=503, detail="Exchange rate unavailable")
+
+    return {
+        "rate": quote.get("price"),
+        "symbol": "USDBRL",
+        "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    }
 
 
 @router.post("/refresh")

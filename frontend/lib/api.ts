@@ -112,3 +112,8 @@ export async function getAssetHistory(ticker: string, period = "30d") {
   const { data } = await api.get(`/market/history/${encodeURIComponent(ticker)}?period=${period}`);
   return data;
 }
+
+export async function getExchangeRate(): Promise<{ rate: number; symbol: string; updated_at: string }> {
+  const response = await api.get("/market/exchange-rate");
+  return response.data;
+}

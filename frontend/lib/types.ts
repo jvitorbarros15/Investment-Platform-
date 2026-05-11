@@ -14,6 +14,26 @@ export interface AssetSearchResult {
   source?: string;
 }
 
+export interface StockQuote {
+  symbol: string;
+  price: number;
+  currency: string;
+  change_1d: number;
+  change_1d_pct: number;
+  market_cap: number | null;
+  pe_ratio: number | null;
+  forward_pe: number | null;
+  price_to_book: number | null;
+  eps: number | null;
+  dividend_yield: number | null;
+  beta: number | null;
+  week_52_high: number | null;
+  week_52_low: number | null;
+  sector: string | null;
+  industry: string | null;
+  name: string;
+}
+
 export interface MarketIndex {
   symbol: string;
   ticker: string;
