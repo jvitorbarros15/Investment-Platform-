@@ -52,10 +52,8 @@ class YahooFinanceProvider(MarketDataProvider):
         return results
 
     async def get_quote(self, symbol: str) -> dict:
-        chart_quote = await _get_chart_quote(symbol)
-        if chart_quote:
-            return chart_quote
-
+        # Try full yfinance first — required for fundamentals (PE, market cap, etc.)
+        # Fall back to chart API only if yfinance fails entirely.
         try:
             ticker = await asyncio.to_thread(yf.Ticker, symbol)
             info = {}
@@ -66,7 +64,17 @@ class YahooFinanceProvider(MarketDataProvider):
             except Exception:
                 fast_info = {}
 
+            try:
+                info = await asyncio.to_thread(lambda: ticker.info)
+            except Exception:
+                info = {}
+
             price = _first_number(
+                info,
+                "currentPrice",
+                "regularMarketPrice",
+                "previousClose",
+            ) or _first_number(
                 fast_info,
                 "last_price",
                 "lastPrice",
@@ -75,46 +83,39 @@ class YahooFinanceProvider(MarketDataProvider):
             )
 
             if not price:
-                try:
-                    info = await asyncio.to_thread(lambda: ticker.info)
-                    price = _first_number(
-                        info,
-                        "currentPrice",
-                        "regularMarketPrice",
-                        "previousClose",
-                    )
-                except Exception:
-                    info = {}
-
-            if not price:
                 hist = await asyncio.to_thread(lambda: ticker.history(period="5d"))
                 if not hist.empty:
                     price = float(hist["Close"].dropna().iloc[-1])
 
-            if not price:
-                return {}
-
-            return {
-                "symbol": symbol,
-                "price": float(price),
-                "change_1d": info.get("regularMarketChange") or 0,
-                "change_1d_pct": (info.get("regularMarketChangePercent") or 0) * 100,
-                "currency": info.get("currency") or fast_info.get("currency", "USD"),
-                "market_cap": info.get("marketCap"),
-                "dividend_yield": info.get("dividendYield"),
-                "pe_ratio": info.get("trailingPE"),
-                "forward_pe": info.get("forwardPE"),
-                "price_to_book": info.get("priceToBook"),
-                "eps": info.get("trailingEps"),
-                "beta": info.get("beta"),
-                "week_52_high": info.get("fiftyTwoWeekHigh"),
-                "week_52_low": info.get("fiftyTwoWeekLow"),
-                "sector": info.get("sector"),
-                "industry": info.get("industry"),
-                "name": info.get("longName") or info.get("shortName"),
-            }
+            if price:
+                return {
+                    "symbol": symbol,
+                    "price": float(price),
+                    "change_1d": info.get("regularMarketChange") or 0,
+                    "change_1d_pct": (info.get("regularMarketChangePercent") or 0) * 100,
+                    "currency": info.get("currency") or fast_info.get("currency", "USD"),
+                    "market_cap": info.get("marketCap"),
+                    "dividend_yield": info.get("dividendYield"),
+                    "pe_ratio": info.get("trailingPE"),
+                    "forward_pe": info.get("forwardPE"),
+                    "price_to_book": info.get("priceToBook"),
+                    "eps": info.get("trailingEps"),
+                    "beta": info.get("beta"),
+                    "week_52_high": info.get("fiftyTwoWeekHigh"),
+                    "week_52_low": info.get("fiftyTwoWeekLow"),
+                    "sector": info.get("sector"),
+                    "industry": info.get("industry"),
+                    "name": info.get("longName") or info.get("shortName"),
+                }
         except Exception:
-            return {}
+            pass
+
+        # Chart API fallback — no fundamentals, but at least gets price
+        chart_quote = await _get_chart_quote(symbol)
+        if chart_quote:
+            return chart_quote
+
+        return {}
 
     async def get_history(self, symbol: str, period: str = "1mo") -> list[dict]:
         chart_history = await _get_chart_history(symbol, period)
