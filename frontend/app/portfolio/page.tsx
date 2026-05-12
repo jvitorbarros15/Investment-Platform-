@@ -121,6 +121,7 @@ export default function HoldingsPage() {
     { key: "value", label: "Value", sortable: true, align: "right" },
     { key: "gain", label: "Gain", sortable: true, align: "right" },
     { key: "return", label: "Return", sortable: true, align: "right" },
+    { key: "remove", label: "", sortable: false, align: "center" },
   ];
 
   const PANEL = {
@@ -424,6 +425,97 @@ export default function HoldingsPage() {
                       {/* RETURN */}
                       <td style={{ padding: "12px 16px", textAlign: "right", fontFamily: "JetBrains Mono, monospace", fontSize: 13, color: ret >= 0 ? "#7dd3a8" : "#e07b6c" }}>
                         {formatPct(ret)}
+                      </td>
+
+                      {/* REMOVE */}
+                      <td
+                        style={{ padding: "8px 12px", textAlign: "center" }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {confirmingTicker === h.ticker ? (
+                          <div style={{ display: "flex", gap: 4, alignItems: "center", justifyContent: "center" }}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeHolding.mutate(h.ticker);
+                              }}
+                              disabled={removeHolding.isPending}
+                              title="Confirm remove"
+                              style={{
+                                width: 24,
+                                height: 24,
+                                borderRadius: 4,
+                                border: "1px solid rgba(125,211,168,0.4)",
+                                background: "rgba(125,211,168,0.1)",
+                                color: "#7dd3a8",
+                                cursor: removeHolding.isPending ? "not-allowed" : "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: 13,
+                                opacity: removeHolding.isPending ? 0.5 : 1,
+                              }}
+                            >
+                              ✓
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setConfirmingTicker(null);
+                              }}
+                              title="Cancel"
+                              style={{
+                                width: 24,
+                                height: 24,
+                                borderRadius: 4,
+                                border: "1px solid rgba(255,255,255,0.1)",
+                                background: "transparent",
+                                color: "rgba(245,241,232,0.4)",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: 13,
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmingTicker(h.ticker);
+                            }}
+                            title={`Remove ${h.ticker}`}
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: 4,
+                              border: "none",
+                              background: "transparent",
+                              color: "rgba(245,241,232,0.25)",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              transition: "color 0.15s",
+                            }}
+                            onMouseEnter={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.color = "rgba(224,123,108,0.8)";
+                            }}
+                            onMouseLeave={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.color = "rgba(245,241,232,0.25)";
+                            }}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                              <path d="M10 11v6M14 11v6" />
+                              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                            </svg>
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
