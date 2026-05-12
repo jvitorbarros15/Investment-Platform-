@@ -31,7 +31,7 @@ function formatNum(v: number, decimals = 2): string {
 }
 
 function formatPct(v: number): string {
-  return (v * 100).toFixed(2) + "%";
+  return v.toFixed(2) + "%";
 }
 
 export default function HoldingsPage() {
