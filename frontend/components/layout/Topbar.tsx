@@ -21,6 +21,7 @@ export function Topbar() {
   const searchRef = useRef<HTMLDivElement>(null);
   const currency = useCurrencyStore((s) => s.currency);
   const setCurrency = useCurrencyStore((s) => s.setCurrency);
+  const fetchRate = useCurrencyStore((s) => s.fetchRate);
 
   useEffect(() => {
     const i = setInterval(() => setNow(new Date()), 1000);
@@ -69,7 +70,10 @@ export function Topbar() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await refreshPrices();
+      await Promise.all([
+        refreshPrices(),
+        fetchRate(),
+      ]);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["portfolio-summary"] }),
         queryClient.invalidateQueries({ queryKey: ["holdings"] }),

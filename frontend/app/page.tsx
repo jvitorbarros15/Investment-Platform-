@@ -86,7 +86,7 @@ export default function Dashboard() {
     ...point,
     value: convertCurrency(point.value, "BRL", displayCurrency, usdBrl),
   }));
-  const compactMoney = (value: number) => {
+  const formatMoney = (value: number) => {
     const converted = convertCurrency(value, "BRL", displayCurrency, usdBrl);
     return formatCurrency(converted, displayCurrency);
   };
@@ -123,8 +123,8 @@ export default function Dashboard() {
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(120px, 1fr))", gap: 20, minWidth: 260 }}>
               {[
-                { label: "Invested capital", value: compactMoney(investedBrl) },
-                { label: "Unrealized gain", value: `${gainDisplay >= 0 ? "+" : "-"}${compactMoney(Math.abs(gainBrl))}`, color: gainDisplay >= 0 ? "#7dd3a8" : "#e07b6c" },
+                { label: "Invested capital", value: formatMoney(investedBrl) },
+                { label: "Unrealized gain", value: `${gainDisplay >= 0 ? "+" : "-"}${formatMoney(Math.abs(gainBrl))}`, color: gainDisplay >= 0 ? "#7dd3a8" : "#e07b6c" },
                 { label: "USD/BRL rate", value: `${usdBrl.toFixed(2)}` },
                 { label: "Holdings", value: String(holdings.length) },
               ].map(stat => (
@@ -174,7 +174,7 @@ export default function Dashboard() {
                 <div key={c.label}>
                   <div className="kicker">{c.label}</div>
                   <div style={{ fontFamily: "var(--font-display)", fontSize: 24, marginTop: 4 }}>{c.pct.toFixed(1)}%</div>
-                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "rgba(245,241,232,0.4)" }}>{compactMoney(c.val)}</div>
+                  <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "rgba(245,241,232,0.4)" }}>{formatMoney(c.val)}</div>
                 </div>
               ))}
             </div>

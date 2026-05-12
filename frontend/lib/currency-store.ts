@@ -16,7 +16,7 @@ export const useCurrencyStore = create<CurrencyStore>()(
   persist(
     (set, get) => ({
       currency: "BRL",
-      exchangeRate: 1.0,
+      exchangeRate: 5.70,
       lastUpdated: null,
       setCurrency: (currency: Currency) => set({ currency }),
       fetchRate: async () => {

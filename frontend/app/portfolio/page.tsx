@@ -45,6 +45,7 @@ export default function HoldingsPage() {
   const [formError, setFormError] = useState("");
   const [confirmingTicker, setConfirmingTicker] = useState<string | null>(null);
   const displayCurrency = useCurrencyStore((s) => s.currency);
+  const storeRate = useCurrencyStore((s) => s.exchangeRate);
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -80,7 +81,7 @@ export default function HoldingsPage() {
     },
   });
 
-  const usdBrl = summary?.usd_to_brl ?? 5.70;
+  const usdBrl = storeRate > 1 ? storeRate : (summary?.usd_to_brl ?? 5.70);
   const toDisplay = useCallback(
     (value: number, currency: "BRL" | "USD") => convertCurrency(value, currency, displayCurrency, usdBrl),
     [displayCurrency, usdBrl]
