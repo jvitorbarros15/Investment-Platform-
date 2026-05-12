@@ -117,3 +117,7 @@ export async function getExchangeRate(): Promise<{ rate: number; symbol: string;
   const response = await api.get("/market/exchange-rate");
   return response.data;
 }
+
+export async function deleteHolding(ticker: string): Promise<void> {
+  await api.delete(`/portfolio/holdings/${encodeURIComponent(ticker)}`);
+}

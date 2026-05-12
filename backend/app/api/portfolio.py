@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -100,6 +100,36 @@ async def allocation(
     portfolio = await _get_portfolio(current_user, db)
     summary = await get_portfolio_summary(db, portfolio.id)
     return summary["allocation"]
+
+
+@router.delete("/holdings/{ticker}", status_code=204)
+async def delete_holding(
+    ticker: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.db.models import Asset
+    portfolio = await _get_portfolio(current_user, db)
+
+    asset_result = await db.execute(
+        select(Asset).where(Asset.ticker == ticker.upper())
+    )
+    asset = asset_result.scalars().first()
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+
+    holding_result = await db.execute(
+        select(Holding).where(
+            Holding.portfolio_id == portfolio.id,
+            Holding.asset_id == asset.id,
+        )
+    )
+    holding = holding_result.scalars().first()
+    if not holding:
+        raise HTTPException(status_code=404, detail="Holding not found")
+
+    await db.delete(holding)
+    await db.commit()
 
 
 @router.get("/history")
