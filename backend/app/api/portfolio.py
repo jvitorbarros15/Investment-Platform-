@@ -48,7 +48,48 @@ async def holdings(
         .order_by(Holding.current_value.desc())
     )
     holdings = result.scalars().all()
-    return [_holding_summary(h) for h in holdings]
+
+    # Per-class current_value totals for weight_in_class
+    class_totals: dict[str, float] = {}
+    for h in holdings:
+        cls = h.asset.asset_class if h.asset else "UNKNOWN"
+        class_totals[cls] = class_totals.get(cls, 0.0) + (h.current_value or 0.0)
+
+    # Get yesterday's prices from PriceSnapshot for change_1d
+    asset_ids = [h.asset_id for h in holdings if h.asset_id]
+    prev_price: dict[str, float] = {}
+    if asset_ids:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=2)
+        snaps_result = await db.execute(
+            select(PriceSnapshot)
+            .where(and_(
+                PriceSnapshot.asset_id.in_(asset_ids),
+                PriceSnapshot.timestamp >= cutoff,
+            ))
+            .order_by(PriceSnapshot.asset_id, PriceSnapshot.timestamp.desc())
+        )
+        snaps = snaps_result.scalars().all()
+        seen_count: dict[str, int] = {}
+        for snap in snaps:
+            aid = str(snap.asset_id)
+            seen_count[aid] = seen_count.get(aid, 0) + 1
+            if seen_count[aid] == 2:
+                prev_price[aid] = snap.close_price
+
+    rows = []
+    for h in holdings:
+        summary = _holding_summary(h)
+        cls = summary["asset_class"]
+        total = class_totals.get(cls, 0.0)
+        summary["weight_in_class"] = round((h.current_value or 0.0) / total * 100, 2) if total > 0 else 0.0
+        prev = prev_price.get(str(h.asset_id))
+        if prev and h.current_price and h.quantity:
+            summary["change_1d"] = round((h.current_price - prev) * h.quantity, 2)
+        else:
+            summary["change_1d"] = None
+        rows.append(summary)
+
+    return rows
 
 
 @router.get("/allocation")
