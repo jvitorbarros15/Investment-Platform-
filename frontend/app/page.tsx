@@ -45,9 +45,10 @@ export default function Dashboard() {
   const totalBrl = summary?.total_value_brl ?? 0;
   const gainBrl = summary?.total_gain_brl ?? 0;
   const investedBrl = summary?.total_invested_brl ?? 0;
-  const usdBrl = storeRate > 1 ? storeRate : (summary?.usd_to_brl ?? 5.70);
-  const totalDisplay = convertCurrency(totalBrl, "BRL", displayCurrency, usdBrl);
-  const gainDisplay = convertCurrency(gainBrl, "BRL", displayCurrency, usdBrl);
+  const summaryRate = summary?.usd_to_brl ?? 5.70;
+  const liveRate = storeRate > 1 ? storeRate : summaryRate;
+  const totalDisplay = convertCurrency(totalBrl, "BRL", displayCurrency, summaryRate);
+  const gainDisplay = convertCurrency(gainBrl, "BRL", displayCurrency, summaryRate);
 
   const sortedByReturn = [...holdings].sort((a, b) => b.return_pct - a.return_pct);
   const winners = sortedByReturn.slice(0, 3);
@@ -56,7 +57,7 @@ export default function Dashboard() {
   const allocation = summary?.allocation ?? [];
   const donutData = allocation.map((a: AllocationSummary) => ({
     label: a.name ?? "Other",
-    value: convertCurrency(a.value ?? a.value_brl ?? 0, "BRL", displayCurrency, usdBrl),
+    value: convertCurrency(a.value ?? a.value_brl ?? 0, "BRL", displayCurrency, summaryRate),
     pct: a.pct ?? 0,
     color: a.color ?? "#9ec5fe",
   }));
@@ -77,17 +78,17 @@ export default function Dashboard() {
 
   const usdHoldings = holdings.filter((h: Holding) => h.currency === "USD");
   const brlHoldings = holdings.filter((h: Holding) => h.currency === "BRL");
-  const usdVal = usdHoldings.reduce((s: number, h: Holding) => s + h.current_value * usdBrl, 0);
+  const usdVal = usdHoldings.reduce((s: number, h: Holding) => s + h.current_value * summaryRate, 0);
   const brlVal = brlHoldings.reduce((s: number, h: Holding) => s + h.current_value, 0);
   const totalCurrency = usdVal + brlVal || 1;
   const usdPct = (usdVal / totalCurrency) * 100;
   const brlPct = (brlVal / totalCurrency) * 100;
   const displayHistory = history.map((point) => ({
     ...point,
-    value: convertCurrency(point.value, "BRL", displayCurrency, usdBrl),
+    value: convertCurrency(point.value, "BRL", displayCurrency, summaryRate),
   }));
   const formatMoney = (value: number) => {
-    const converted = convertCurrency(value, "BRL", displayCurrency, usdBrl);
+    const converted = convertCurrency(value, "BRL", displayCurrency, summaryRate);
     return formatCurrency(converted, displayCurrency);
   };
 
@@ -125,7 +126,7 @@ export default function Dashboard() {
               {[
                 { label: "Invested capital", value: formatMoney(investedBrl) },
                 { label: "Unrealized gain", value: `${gainDisplay >= 0 ? "+" : "-"}${formatMoney(Math.abs(gainBrl))}`, color: gainDisplay >= 0 ? "#7dd3a8" : "#e07b6c" },
-                { label: "USD/BRL rate", value: `${usdBrl.toFixed(2)}` },
+                { label: "USD/BRL rate", value: `${liveRate.toFixed(2)}` },
                 { label: "Holdings", value: String(holdings.length) },
               ].map(stat => (
                 <div key={stat.label}>
@@ -180,7 +181,7 @@ export default function Dashboard() {
             </div>
             <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-between", fontSize: 12 }}>
               <span style={{ color: "rgba(245,241,232,0.4)" }}>FX rate · USD/BRL</span>
-              <span style={{ fontFamily: "var(--font-mono)", color: "#f5f1e8" }}>{usdBrl.toFixed(2)}</span>
+              <span style={{ fontFamily: "var(--font-mono)", color: "#f5f1e8" }}>{liveRate.toFixed(2)}</span>
             </div>
           </section>
         </Reveal>
@@ -210,7 +211,7 @@ export default function Dashboard() {
                           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                             <TickPulse trigger={tick} color={isUp ? "#7dd3a8" : "#e07b6c"} />
                             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>
-                              {formatCurrency(convertCurrency(h.quantity ? (h.current_value / h.quantity) : 0, h.currency, displayCurrency, usdBrl), displayCurrency)}
+                              {formatCurrency(convertCurrency(h.quantity ? (h.current_value / h.quantity) : 0, h.currency, displayCurrency, summaryRate), displayCurrency)}
                             </span>
                           </div>
                           <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: isUp ? "#7dd3a8" : "#e07b6c" }}>
