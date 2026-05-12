@@ -4,7 +4,7 @@ import { useCallback, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { CSSProperties, FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createTransaction, getHoldings, getPortfolioSummary } from "@/lib/api";
+import { createTransaction, deleteHolding, getHoldings, getPortfolioSummary } from "@/lib/api";
 import { Reveal } from "@/components/ui/reveal";
 import { Sparkline } from "@/components/ui/sparkline";
 import { CLASS_COLOR } from "@/components/ui/class-chip";
@@ -43,6 +43,7 @@ export default function HoldingsPage() {
   const [price, setPrice] = useState("");
   const [currency, setCurrency] = useState<"BRL" | "USD">("BRL");
   const [formError, setFormError] = useState("");
+  const [confirmingTicker, setConfirmingTicker] = useState<string | null>(null);
   const displayCurrency = useCurrencyStore((s) => s.currency);
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -64,6 +65,17 @@ export default function HoldingsPage() {
         queryClient.invalidateQueries({ queryKey: ["portfolio-summary"] }),
         queryClient.invalidateQueries({ queryKey: ["portfolio-history"] }),
         queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+      ]);
+    },
+  });
+
+  const removeHolding = useMutation({
+    mutationFn: (ticker: string) => deleteHolding(ticker),
+    onSuccess: async () => {
+      setConfirmingTicker(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["holdings"] }),
+        queryClient.invalidateQueries({ queryKey: ["portfolio-summary"] }),
       ]);
     },
   });
