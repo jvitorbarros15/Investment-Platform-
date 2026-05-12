@@ -173,21 +173,26 @@ async def portfolio_history(
         if not snapshots:
             return []
 
-        # Aggregate by date
+        # Aggregate by date — keep only the latest snapshot per (asset_id, date)
         from collections import defaultdict
-        daily = defaultdict(float)
+        daily: dict[str, float] = defaultdict(float)
         rate = get_usd_to_brl()
 
-        # Validate exchange rate
         if not isinstance(rate, (int, float)) or rate <= 0:
-            rate = 5.70  # Fallback to default if invalid
+            rate = 5.70
 
+        # Deduplicate: for each (asset_id, date) pair keep only the latest snapshot.
+        # Snapshots are already ordered by timestamp ASC so iterating and overwriting
+        # naturally leaves the last (latest) value in place.
+        latest: dict[tuple, object] = {}
         for snap in snapshots:
-            holding = holdings_map.get(snap.asset_id)
+            date_key = snap.timestamp.strftime("%Y-%m-%d")
+            latest[(snap.asset_id, date_key)] = snap
+
+        for (asset_id, date_key), snap in latest.items():
+            holding = holdings_map.get(asset_id)
             if not holding:
                 continue
-
-            date_key = snap.timestamp.strftime("%Y-%m-%d")
             multiplier = rate if snap.currency == "USD" else 1.0
             daily[date_key] += snap.close_price * holding.quantity * multiplier
 
