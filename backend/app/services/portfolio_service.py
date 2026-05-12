@@ -73,6 +73,7 @@ def _holding_summary(h: Holding) -> dict:
         "average_cost": h.average_cost,
         "current_price": h.current_price,
         "current_value": h.current_value,
+        "unrealized_gain": h.unrealized_gain,
         "total_gain": h.total_gain_including_dividends,
         "return_pct": h.return_pct,
     }
