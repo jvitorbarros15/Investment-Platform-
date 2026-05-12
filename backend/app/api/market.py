@@ -74,8 +74,12 @@ async def get_exchange_rate():
     if not quote:
         raise HTTPException(status_code=503, detail="Exchange rate unavailable")
 
+    rate = quote.get("price")
+    if not rate or rate <= 0:
+        raise HTTPException(status_code=503, detail="Exchange rate unavailable")
+
     return {
-        "rate": quote.get("price"),
+        "rate": rate,
         "symbol": "USDBRL",
         "updated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }

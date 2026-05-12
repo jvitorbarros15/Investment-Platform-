@@ -22,7 +22,9 @@ export const useCurrencyStore = create<CurrencyStore>()(
       fetchRate: async () => {
         try {
           const data = await getExchangeRate();
-          set({ exchangeRate: data.rate, lastUpdated: new Date() });
+          if (data.rate && data.rate > 0) {
+            set({ exchangeRate: data.rate, lastUpdated: new Date() });
+          }
         } catch (error) {
           console.error("Failed to fetch exchange rate:", error);
         }
@@ -30,7 +32,7 @@ export const useCurrencyStore = create<CurrencyStore>()(
     }),
     {
       name: "invest_currency",
-      partialize: (state) => ({ currency: state.currency }),
+      partialize: (state) => ({ currency: state.currency, exchangeRate: state.exchangeRate }),
       onRehydrateStorage: () => (state) => {
         if (typeof window !== "undefined") {
           state?.fetchRate();
