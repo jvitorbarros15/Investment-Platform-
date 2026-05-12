@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import type { CSSProperties, FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createTransaction, getHoldings, getPortfolioSummary } from "@/lib/api";
@@ -44,6 +45,7 @@ export default function HoldingsPage() {
   const [formError, setFormError] = useState("");
   const displayCurrency = useCurrencyStore((s) => s.currency);
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const { data: holdings = [], isLoading } = useQuery({
     queryKey: ["holdings"],
@@ -333,6 +335,7 @@ export default function HoldingsPage() {
                   return (
                     <tr
                       key={h.ticker}
+                      onClick={() => router.push(`/assets/${encodeURIComponent(h.ticker)}`)}
                       style={{
                         borderBottom: i < filtered.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
                         transition: "background 0.15s",
