@@ -1,15 +1,14 @@
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.security import get_current_user
-from app.db.models import Holding, Portfolio, User
+from app.db.models import Holding, Portfolio, User, PriceSnapshot
 from app.db.session import get_db
 from app.services.portfolio_service import _holding_summary, get_portfolio_summary
-from datetime import datetime, timedelta, timezone
-from sqlalchemy import and_
-from app.db.models import PriceSnapshot
 from app.services.price_refresh_service import get_usd_to_brl
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
@@ -174,7 +173,6 @@ async def portfolio_history(
             return []
 
         # Aggregate by date — keep only the latest snapshot per (asset_id, date)
-        from collections import defaultdict
         daily: dict[str, float] = defaultdict(float)
         rate = get_usd_to_brl()
 
@@ -184,7 +182,7 @@ async def portfolio_history(
         # Deduplicate: for each (asset_id, date) pair keep only the latest snapshot.
         # Snapshots are already ordered by timestamp ASC so iterating and overwriting
         # naturally leaves the last (latest) value in place.
-        latest: dict[tuple, object] = {}
+        latest: dict[tuple[int, str], PriceSnapshot] = {}
         for snap in snapshots:
             date_key = snap.timestamp.strftime("%Y-%m-%d")
             latest[(snap.asset_id, date_key)] = snap
