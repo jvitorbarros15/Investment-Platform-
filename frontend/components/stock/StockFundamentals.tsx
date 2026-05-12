@@ -70,8 +70,19 @@ export function StockFundamentals({ quote }: StockFundamentalsProps) {
     return formatted;
   };
 
+  const formatMarketCap = (value: number | null): string => {
+    if (value === null) return "—";
+    const converted = convertPrice(value);
+    if (converted === null) return "—";
+    const sym = currency === "BRL" ? "R$" : "$";
+    if (Math.abs(converted) >= 1e12) return `${sym}${(converted / 1e12).toFixed(2)}T`;
+    if (Math.abs(converted) >= 1e9) return `${sym}${(converted / 1e9).toFixed(2)}B`;
+    if (Math.abs(converted) >= 1e6) return `${sym}${(converted / 1e6).toFixed(2)}M`;
+    return `${sym}${converted.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+  };
+
   const numericMetrics: { label: string; value: number | null; format: (v: number | null) => string }[] = [
-    { label: "Market Cap", value: quote.market_cap, format: formatPrice },
+    { label: "Market Cap", value: quote.market_cap, format: formatMarketCap },
     { label: "P/E Ratio", value: quote.pe_ratio, format: formatValue },
     { label: "Forward P/E", value: quote.forward_pe, format: formatValue },
     { label: "P/VP", value: quote.price_to_book, format: formatValue },
