@@ -7,6 +7,9 @@ import { createTransaction } from "@/lib/api";
 
 interface QuickAddModalProps {
   onClose: () => void;
+  initialTicker?: string;
+  initialPrice?: number;
+  initialCurrency?: "BRL" | "USD";
 }
 
 const OVERLAY: CSSProperties = {
@@ -32,13 +35,13 @@ const INPUT: CSSProperties = {
 const LABEL: CSSProperties = { display: "grid", gap: 6 };
 const LABEL_TEXT: CSSProperties = { color: "#8892a4", fontSize: 11, fontWeight: 600, letterSpacing: "0.05em" };
 
-export function QuickAddModal({ onClose }: QuickAddModalProps) {
+export function QuickAddModal({ onClose, initialTicker = "", initialPrice, initialCurrency = "BRL" }: QuickAddModalProps) {
   const queryClient = useQueryClient();
-  const [ticker, setTicker] = useState("");
+  const [ticker, setTicker] = useState(initialTicker);
   const [type, setType] = useState<"BUY" | "SELL">("BUY");
   const [quantity, setQuantity] = useState("");
-  const [price, setPrice] = useState("");
-  const [currency, setCurrency] = useState<"BRL" | "USD">("BRL");
+  const [price, setPrice] = useState(initialPrice !== undefined ? String(initialPrice) : "");
+  const [currency, setCurrency] = useState<"BRL" | "USD">(initialCurrency);
   const [error, setError] = useState("");
 
   const addTx = useMutation({
@@ -93,14 +96,14 @@ export function QuickAddModal({ onClose }: QuickAddModalProps) {
             <input
               style={INPUT} value={ticker} placeholder="e.g. AAPL, PETR4"
               onChange={(e) => setTicker(e.target.value.toUpperCase())}
-              autoFocus
+              autoFocus={!initialTicker}
             />
           </label>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <label style={LABEL}>
               <span style={LABEL_TEXT}>QUANTITY</span>
-              <input style={INPUT} type="number" min="0" step="any" value={quantity} placeholder="0" onChange={(e) => setQuantity(e.target.value)} />
+              <input style={INPUT} type="number" min="0" step="any" value={quantity} placeholder="0" onChange={(e) => setQuantity(e.target.value)} autoFocus={!!initialTicker} />
             </label>
             <label style={LABEL}>
               <span style={LABEL_TEXT}>PRICE</span>

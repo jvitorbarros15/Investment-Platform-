@@ -11,6 +11,7 @@ import { StockFundamentals } from "@/components/stock/StockFundamentals";
 import { StockPosition } from "@/components/stock/StockPosition";
 import { StockChart } from "@/components/stock/StockChart";
 import { WatchlistToggle } from "@/components/stock/WatchlistToggle";
+import { QuickAddModal } from "@/components/layout/QuickAddModal";
 
 interface HistoryPoint {
   date: string;
@@ -33,6 +34,7 @@ export default function AssetDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rateLoading, setRateLoading] = useState(false);
+  const [addPositionOpen, setAddPositionOpen] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -113,6 +115,20 @@ export default function AssetDetailPage() {
                 {quote.sector || "N/A"}
               </span>
               <WatchlistToggle ticker={ticker} watchlistItemId={watchlistItemId} />
+              <button
+                onClick={() => setAddPositionOpen(true)}
+                title="Add position"
+                style={{
+                  width: 32, height: 32, borderRadius: 6,
+                  border: "1px solid rgba(201,247,111,0.3)",
+                  background: "rgba(201,247,111,0.08)",
+                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c9f76f" strokeWidth="2">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </button>
             </div>
             <p className="text-neutral-400 text-lg">{quote.name}</p>
           </div>
@@ -187,6 +203,14 @@ export default function AssetDetailPage() {
           </div>
         )}
       </div>
+      {addPositionOpen && (
+        <QuickAddModal
+          onClose={() => setAddPositionOpen(false)}
+          initialTicker={quote.symbol}
+          initialPrice={quote.price}
+          initialCurrency={quote.currency as "BRL" | "USD"}
+        />
+      )}
     </div>
   );
 }
