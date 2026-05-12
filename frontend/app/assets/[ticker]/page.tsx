@@ -152,9 +152,32 @@ export default function AssetDetailPage() {
           <button
             onClick={handleRefreshRate}
             disabled={rateLoading}
-            className="text-xs px-4 py-2 bg-neutral-800 hover:bg-neutral-700 rounded transition disabled:opacity-50"
+            title="Refresh exchange rate"
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 6,
+              border: "1px solid rgba(255,255,255,0.08)",
+              background: "#14130f",
+              cursor: rateLoading ? "not-allowed" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: rateLoading ? 0.6 : 1,
+            }}
           >
-            {rateLoading ? "Refreshing..." : "🔄 Refresh Rate"}
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="rgba(245,241,232,0.6)"
+              strokeWidth="2"
+              style={{ animation: rateLoading ? "topbarSpin 0.8s linear infinite" : "none" }}
+            >
+              <path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-7-3.3M3 12a9 9 0 0 1 9-9 9 9 0 0 1 7 3.3" />
+              <path d="M21 3v6h-6M3 21v-6h6" />
+            </svg>
           </button>
           {useCurrencyStore.getState().lastUpdated && (
             <span className="text-xs text-neutral-500">
