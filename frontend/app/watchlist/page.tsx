@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getWatchlist } from "@/lib/api";
 import { Reveal } from "@/components/ui/reveal";
@@ -45,6 +46,7 @@ function formatPct(v: number): string {
 
 export default function WatchlistPage() {
   const [filter, setFilter] = useState<WatchlistStatus | "ALL">("ALL");
+  const router = useRouter();
 
   const { data: watchlist = [], isLoading } = useQuery({
     queryKey: ["watchlist"],
@@ -129,6 +131,7 @@ export default function WatchlistPage() {
               return (
                 <Reveal key={w.id} delay={i * 60}>
                   <div
+                    onClick={() => router.push(`/assets/${encodeURIComponent(w.ticker)}`)}
                     style={{
                       ...PANEL,
                       padding: 20,
