@@ -31,6 +31,7 @@ function genSparkData(seed: number, n = 30): number[] {
 export default function Dashboard() {
   const [tick, setTick] = useState(0);
   const displayCurrency = useCurrencyStore((s) => s.currency);
+  const storeRate = useCurrencyStore((s) => s.exchangeRate);
   useEffect(() => {
     const i = setInterval(() => setTick(t => t + 1), 3500);
     return () => clearInterval(i);
@@ -44,13 +45,13 @@ export default function Dashboard() {
   const totalBrl = summary?.total_value_brl ?? 0;
   const gainBrl = summary?.total_gain_brl ?? 0;
   const investedBrl = summary?.total_invested_brl ?? 0;
-  const usdBrl = summary?.usd_to_brl ?? 5.70;
+  const usdBrl = storeRate > 1 ? storeRate : (summary?.usd_to_brl ?? 5.70);
   const totalDisplay = convertCurrency(totalBrl, "BRL", displayCurrency, usdBrl);
   const gainDisplay = convertCurrency(gainBrl, "BRL", displayCurrency, usdBrl);
 
   const sortedByReturn = [...holdings].sort((a, b) => b.return_pct - a.return_pct);
   const winners = sortedByReturn.slice(0, 3);
-  const losers = [...sortedByReturn].reverse().slice(0, 3);
+  const losers = [...sortedByReturn].reverse().filter((h) => h.return_pct < 0).slice(0, 3);
 
   const allocation = summary?.allocation ?? [];
   const donutData = allocation.map((a: AllocationSummary) => ({
@@ -87,8 +88,7 @@ export default function Dashboard() {
   }));
   const compactMoney = (value: number) => {
     const converted = convertCurrency(value, "BRL", displayCurrency, usdBrl);
-    const prefix = displayCurrency === "BRL" ? "R$" : "$";
-    return `${prefix}${(converted / 1000).toFixed(1)}k`;
+    return formatCurrency(converted, displayCurrency);
   };
 
   const PANEL: React.CSSProperties = {
