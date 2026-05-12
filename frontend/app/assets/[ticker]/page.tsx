@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { getAssetDetail, getAssetHistory, getHoldings } from "@/lib/api";
+import { getAssetDetail, getAssetHistory, getHoldings, getWatchlist } from "@/lib/api";
 import { useCurrencyStore } from "@/lib/currency-store";
 import { StockQuote, Holding } from "@/lib/types";
 import { convertAmount } from "@/lib/utils/currency";
 import { StockFundamentals } from "@/components/stock/StockFundamentals";
 import { StockPosition } from "@/components/stock/StockPosition";
 import { StockChart } from "@/components/stock/StockChart";
+import { WatchlistToggle } from "@/components/stock/WatchlistToggle";
 
 interface HistoryPoint {
   date: string;
@@ -27,6 +28,7 @@ export default function AssetDetailPage() {
   const [quote, setQuote] = useState<StockQuote | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [holding, setHolding] = useState<Holding | null>(null);
+  const [watchlistItemId, setWatchlistItemId] = useState<string | null>(null);
   const [period, setPeriod] = useState<string>("365d");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,10 +38,11 @@ export default function AssetDetailPage() {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [quoteData, historyData, holdings] = await Promise.all([
+        const [quoteData, historyData, holdings, watchlist] = await Promise.all([
           getAssetDetail(ticker),
           getAssetHistory(ticker, period),
           getHoldings(),
+          getWatchlist(),
         ]);
 
         setQuote(quoteData);
@@ -48,6 +51,10 @@ export default function AssetDetailPage() {
           (h) => h.ticker.toUpperCase() === ticker.toUpperCase()
         );
         setHolding(found || null);
+        const wItem = watchlist.find(
+          (w: { ticker: string; id: string }) => w.ticker.toUpperCase() === ticker.toUpperCase()
+        );
+        setWatchlistItemId(wItem?.id ?? null);
       } catch (err) {
         setError("Failed to load asset details");
         console.error(err);
@@ -105,6 +112,7 @@ export default function AssetDetailPage() {
               <span className="text-xs bg-neutral-800 px-2 py-1 rounded">
                 {quote.sector || "N/A"}
               </span>
+              <WatchlistToggle ticker={ticker} watchlistItemId={watchlistItemId} />
             </div>
             <p className="text-neutral-400 text-lg">{quote.name}</p>
           </div>
