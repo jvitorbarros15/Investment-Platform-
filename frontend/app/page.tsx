@@ -150,7 +150,7 @@ export default function Dashboard() {
           <section style={PANEL}>
             <div className="kicker" style={{ marginBottom: 4 }}>Allocation</div>
             <h3 style={{ fontFamily: "var(--font-display)", fontSize: 20, margin: "0 0 16px" }}>By asset class</h3>
-            {!isLoading && <DonutChart data={donutData} centerValue={`${displayCurrency === "BRL" ? "R$" : "$"}${(totalDisplay / 1000).toFixed(0)}k`} />}
+            {!isLoading && <DonutChart data={donutData} centerValue={formatCurrency(totalDisplay, displayCurrency)} />}
           </section>
         </Reveal>
 
