@@ -1,18 +1,19 @@
 import type { Metadata } from "next";
-import { Instrument_Serif, Inter, JetBrains_Mono } from "next/font/google";
+import { Bricolage_Grotesque, Manrope, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { LayoutWrapper } from "@/components/layout/LayoutWrapper";
 
-const instrumentSerif = Instrument_Serif({
+const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
-  weight: "400",
-  variable: "--font-instrument-serif",
+  weight: ["300", "400", "500", "600", "700", "800"],
+  variable: "--font-bricolage",
   display: "swap",
 });
-const inter = Inter({
+const manrope = Manrope({
   subsets: ["latin"],
-  variable: "--font-inter",
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-manrope",
   display: "swap",
 });
 const jetbrainsMono = JetBrains_Mono({
@@ -28,7 +29,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en-US" className={`h-full ${instrumentSerif.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en-US" className={`h-full ${bricolage.variable} ${manrope.variable} ${jetbrainsMono.variable}`}>
       <body className="h-full antialiased">
         <Providers>
           <LayoutWrapper>{children}</LayoutWrapper>
