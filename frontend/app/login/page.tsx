@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { TrendingUp, Eye, EyeOff, Lock, Mail } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { getSupabase } from "@/lib/supabase";
 
@@ -20,10 +20,7 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const { data, error } = await getSupabase().auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { data, error } = await getSupabase().auth.signInWithPassword({ email, password });
       if (error || !data.session) throw error;
       setSession(data.session.access_token, data.user?.email ?? email);
       router.replace("/");
@@ -34,131 +31,89 @@ export default function LoginPage() {
     }
   };
 
+  const inputStyle: React.CSSProperties = {
+    width: "100%", height: 42, border: "1px solid var(--color-ink)",
+    background: "var(--color-paper-2)", color: "var(--color-ink)",
+    padding: "0 12px", fontFamily: "var(--font-mono)", fontSize: 13,
+    outline: "none", boxSizing: "border-box", borderRadius: 0,
+  };
+
   return (
-    <div
-      className="min-h-screen w-full flex items-center justify-center px-4"
-      style={{ background: "#0c0b08" }}
-    >
-      <div className="w-full max-w-sm">
+    <div style={{ minHeight: "100vh", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 16px", background: "var(--color-paper)" }}>
+      <div style={{ width: "100%", maxWidth: 380 }}>
         {/* Logo */}
-        <div className="flex flex-col items-center mb-10">
-          <div className="flex items-center gap-2.5 mb-2">
-            <TrendingUp size={22} style={{ color: "#c9f76f" }} />
-            <span
-              className="text-2xl font-bold tracking-widest uppercase"
-              style={{ fontFamily: "var(--font-display)", color: "#c9f76f", letterSpacing: "0.2em" }}
-            >
-              MERIDIAN
-            </span>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 40 }}>
+          <div style={{
+            width: 52, height: 52, borderRadius: "50%",
+            background: "var(--color-ink)", color: "var(--color-paper)",
+            display: "grid", placeItems: "center",
+            fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 24, letterSpacing: "-0.04em",
+            position: "relative", marginBottom: 16,
+          }}>
+            M
+            <span style={{ position: "absolute", inset: 5, borderRadius: "50%", border: "1px dashed var(--color-paper)", opacity: 0.4 }} />
           </div>
-          <p className="text-xs" style={{ color: "#8892a4", fontFamily: "JetBrains Mono, monospace" }}>
-            investment platform
-          </p>
+          <div style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 36, lineHeight: 0.9, letterSpacing: "-0.04em", color: "var(--color-ink)" }}>
+            MERIDIAN
+          </div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.22em", textTransform: "uppercase", color: "var(--color-ink-3)", marginTop: 8 }}>
+            Personal Capital
+          </div>
         </div>
 
         {/* Card */}
-        <div
-          className="rounded-xl p-8 border"
-          style={{
-            background: "#14130f",
-            borderColor: "rgba(255,255,255,0.07)",
-          }}
-        >
-          <h2
-            className="text-lg font-semibold mb-6"
-            style={{ fontFamily: "var(--font-display)", color: "#f5f1e8" }}
-          >
+        <div style={{ border: "1px solid var(--color-ink)", padding: 32, background: "var(--color-paper)" }}>
+          <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 24, color: "var(--color-ink)", margin: "0 0 24px", letterSpacing: "-0.02em" }}>
             Sign in
           </h2>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email */}
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
-              <label className="block text-xs uppercase tracking-widest mb-2" style={{ color: "#8892a4", fontFamily: "JetBrains Mono" }}>
-                Email
-              </label>
-              <div className="relative">
-                <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#8892a4" }} />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  className="w-full pl-9 pr-4 py-2.5 rounded-md text-sm outline-none transition-all"
-                  style={{
-                    background: "#1a1814",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    color: "#f5f1e8",
-                    fontFamily: "JetBrains Mono, monospace",
-                  }}
-                  onFocus={(e) => (e.currentTarget.style.borderColor = "rgba(201,247,111,0.3)")}
-                  onBlur={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)")}
-                />
-              </div>
+              <div className="kicker" style={{ marginBottom: 8 }}>Email</div>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email"
+                style={inputStyle}
+                onFocus={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--color-terracotta)"; }}
+                onBlur={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--color-ink)"; }}
+              />
             </div>
 
-            {/* Password */}
             <div>
-              <label className="block text-xs uppercase tracking-widest mb-2" style={{ color: "#8892a4", fontFamily: "JetBrains Mono" }}>
-                Password
-              </label>
-              <div className="relative">
-                <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#8892a4" }} />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                  className="w-full pl-9 pr-10 py-2.5 rounded-md text-sm outline-none transition-all"
-                  style={{
-                    background: "#1a1814",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    color: "#f5f1e8",
-                    fontFamily: "JetBrains Mono, monospace",
-                  }}
-                  onFocus={(e) => (e.currentTarget.style.borderColor = "rgba(201,247,111,0.3)")}
-                  onBlur={(e) => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)")}
+              <div className="kicker" style={{ marginBottom: 8 }}>Password</div>
+              <div style={{ position: "relative" }}>
+                <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password"
+                  style={{ ...inputStyle, paddingRight: 40 }}
+                  onFocus={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--color-terracotta)"; }}
+                  onBlur={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--color-ink)"; }}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2"
-                  style={{ color: "#8892a4" }}
-                >
+                <button type="button" onClick={() => setShowPassword(!showPassword)} style={{
+                  position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+                  background: "none", border: "none", color: "var(--color-ink-4)", cursor: "pointer",
+                }}>
                   {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
               </div>
             </div>
 
-            {/* Error */}
             {error && (
-              <p className="text-xs py-2 px-3 rounded-md" style={{ color: "#e07b6c", background: "rgba(224,123,108,0.08)", border: "1px solid rgba(224,123,108,0.2)", fontFamily: "JetBrains Mono" }}>
+              <div style={{ color: "var(--color-crimson)", fontSize: 12, fontFamily: "var(--font-mono)", padding: "8px 12px", border: "1px solid var(--color-crimson)" }}>
                 {error}
-              </p>
+              </div>
             )}
 
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 rounded-md text-sm font-semibold transition-all mt-2"
-              style={{
-                background: loading ? "rgba(201,247,111,0.6)" : "#c9f76f",
-                color: "#0c0b08",
-                fontFamily: "var(--font-display)",
-                cursor: loading ? "not-allowed" : "pointer",
-              }}
-            >
+            <button type="submit" disabled={loading} style={{
+              height: 42, border: "1px solid var(--color-terracotta-2)", borderRadius: 0,
+              background: loading ? "rgba(204,82,48,0.6)" : "var(--color-terracotta)",
+              color: "var(--color-paper)", fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: 13,
+              cursor: loading ? "not-allowed" : "pointer", marginTop: 8,
+            }}>
               {loading ? "Signing in..." : "Sign in"}
             </button>
           </form>
         </div>
 
-        <p className="text-center text-xs mt-6" style={{ color: "#8892a4", fontFamily: "JetBrains Mono" }}>
+        <div style={{ textAlign: "center", marginTop: 20, fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--color-ink-4)" }}>
           MERIDIAN · Investment Platform
-        </p>
+        </div>
       </div>
     </div>
   );
