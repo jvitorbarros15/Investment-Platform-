@@ -46,16 +46,11 @@ export default function AssetDetailPage() {
           getHoldings(),
           getWatchlist(),
         ]);
-
         setQuote(quoteData);
         setHistory(historyData);
-        const found = holdings.find(
-          (h) => h.ticker.toUpperCase() === ticker.toUpperCase()
-        );
+        const found = holdings.find((h) => h.ticker.toUpperCase() === ticker.toUpperCase());
         setHolding(found || null);
-        const wItem = watchlist.find(
-          (w: { ticker: string; id: string }) => w.ticker.toUpperCase() === ticker.toUpperCase()
-        );
+        const wItem = watchlist.find((w: { ticker: string; id: string }) => w.ticker.toUpperCase() === ticker.toUpperCase());
         setWatchlistItemId(wItem?.id ?? null);
       } catch (err) {
         setError("Failed to load asset details");
@@ -64,168 +59,119 @@ export default function AssetDetailPage() {
         setLoading(false);
       }
     };
-
     loadData();
   }, [ticker, period]);
 
   const handleRefreshRate = async () => {
     setRateLoading(true);
-    try {
-      await fetchRate();
-    } catch (error) {
-      console.error("Failed to refresh rate:", error);
-    } finally {
-      setRateLoading(false);
-    }
+    try { await fetchRate(); } catch {}
+    finally { setRateLoading(false); }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
-        <div className="text-neutral-400">Loading...</div>
+      <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ fontFamily: "var(--font-mono)", color: "var(--color-ink-3)", letterSpacing: "0.12em" }}>Loading...</div>
       </div>
     );
   }
 
   if (error || !quote) {
     return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center">
-        <div className="text-red-500">{error || "Asset not found"}</div>
+      <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ color: "var(--color-crimson)" }}>{error || "Asset not found"}</div>
       </div>
     );
   }
 
   const displayPrice = convertAmount(quote.price, quote.currency, currency, exchangeRate);
   const changePct = quote.change_1d_pct ?? 0;
-  const displayColor = changePct >= 0 ? "text-green-500" : "text-red-500";
+  const isUp = changePct >= 0;
+
+  const PERIOD_MAP: Record<string, string> = { "1m": "30d", "3m": "90d", "6m": "180d", "1y": "365d" };
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Header */}
-        <Link href="/assets" className="text-neutral-400 hover:text-white mb-6">
-          ← Back
-        </Link>
+    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+      {/* BACK */}
+      <Link href="/portfolio" style={{ display: "inline-block", marginBottom: 20, fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--color-ink-3)", textDecoration: "none", letterSpacing: "0.1em" }}>
+        ← Back to Holdings
+      </Link>
 
-        <div className="flex items-start justify-between mb-8">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl font-bold">{quote.symbol}</h1>
-              <span className="text-xs bg-neutral-800 px-2 py-1 rounded">
-                {quote.sector || "N/A"}
-              </span>
-              <WatchlistToggle ticker={ticker} watchlistItemId={watchlistItemId} />
-              <button
-                onClick={() => setAddPositionOpen(true)}
-                title="Add position"
-                style={{
-                  width: 32, height: 32, borderRadius: 6,
-                  border: "1px solid rgba(201,247,111,0.3)",
-                  background: "rgba(201,247,111,0.08)",
-                  cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c9f76f" strokeWidth="2">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-              </button>
-            </div>
-            <p className="text-neutral-400 text-lg">{quote.name}</p>
+      {/* HEADER BAND */}
+      <div style={{ border: "1px solid var(--color-ink)", padding: "20px 24px", marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "flex-start", background: "var(--color-paper-2)" }}>
+        <div>
+          <div className="kicker" style={{ marginBottom: 8 }}>{quote.sector || "Equity"}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 8 }}>
+            <h1 style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: 32, color: "var(--color-ink)", margin: 0, letterSpacing: "-0.02em" }}>{quote.symbol}</h1>
+            <WatchlistToggle ticker={ticker} watchlistItemId={watchlistItemId} />
+            <button onClick={() => setAddPositionOpen(true)} title="Add position" style={{
+              width: 32, height: 32, border: "1px solid var(--color-ink)", background: "var(--color-paper)",
+              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--color-ink)" strokeWidth="2">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </button>
           </div>
-
-          <div className="text-right">
-            <div className="text-4xl font-bold mb-2">
-              {new Intl.NumberFormat("en-US", {
-                style: "currency",
-                currency: currency === "BRL" ? "BRL" : "USD",
-              }).format(displayPrice)}
-            </div>
-            <div className={`text-lg font-semibold ${displayColor}`}>
-              {changePct >= 0 ? "+" : ""}
-              {changePct.toFixed(2)}% today
-            </div>
-          </div>
+          <div style={{ fontSize: 14, color: "var(--color-ink-3)" }}>{quote.name}</div>
         </div>
-
-        {/* Refresh Rate Button */}
-        <div className="mb-8 flex gap-2 items-center">
-          <button
-            onClick={handleRefreshRate}
-            disabled={rateLoading}
-            title="Refresh exchange rate"
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 6,
-              border: "1px solid rgba(255,255,255,0.08)",
-              background: "#14130f",
-              cursor: rateLoading ? "not-allowed" : "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: rateLoading ? 0.6 : 1,
-            }}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="rgba(245,241,232,0.6)"
-              strokeWidth="2"
-              style={{ animation: rateLoading ? "topbarSpin 0.8s linear infinite" : "none" }}
-            >
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 40, color: "var(--color-ink)", lineHeight: 0.9, marginBottom: 10 }}>
+            {new Intl.NumberFormat("en-US", { style: "currency", currency: currency === "BRL" ? "BRL" : "USD" }).format(displayPrice)}
+          </div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: 14, color: isUp ? "var(--color-teal)" : "var(--color-crimson)", fontWeight: 600 }}>
+            {isUp ? "▲" : "▼"} {Math.abs(changePct).toFixed(2)}% today
+          </div>
+          <button onClick={handleRefreshRate} disabled={rateLoading} style={{
+            marginTop: 8, width: 28, height: 28, border: "1px solid var(--color-rule)", background: "var(--color-paper)",
+            cursor: rateLoading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: rateLoading ? 0.5 : 1,
+          }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--color-ink-4)" strokeWidth="2"
+              style={{ animation: rateLoading ? "topbarSpin 0.8s linear infinite" : "none" }}>
               <path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-7-3.3M3 12a9 9 0 0 1 9-9 9 9 0 0 1 7 3.3" />
               <path d="M21 3v6h-6M3 21v-6h6" />
             </svg>
           </button>
-          {useCurrencyStore.getState().lastUpdated && (
-            <span className="text-xs text-neutral-500">
-              Rate: {useCurrencyStore.getState().lastUpdated?.toLocaleTimeString()}
-            </span>
-          )}
         </div>
+      </div>
 
-        {/* Chart */}
-        <div className="mb-8">
-          <div className="flex gap-2 mb-4">
-            {["1m", "3m", "6m", "1y"].map((p) => {
-              const periodMap: Record<string, string> = {
-                "1m": "30d",
-                "3m": "90d",
-                "6m": "180d",
-                "1y": "365d",
-              };
-              return (
-                <button
-                  key={p}
-                  onClick={() => setPeriod(periodMap[p])}
-                  className={`px-3 py-1 text-sm rounded transition ${
-                    period === periodMap[p]
-                      ? "bg-blue-600"
-                      : "bg-neutral-800 hover:bg-neutral-700"
-                  }`}
-                >
-                  {p.toUpperCase()}
-                </button>
-              );
-            })}
-          </div>
+      {/* CHART */}
+      <div style={{ border: "1px solid var(--color-ink)", marginBottom: 24 }}>
+        <div style={{ padding: "14px 24px", borderBottom: "1px solid var(--color-rule-2)", display: "flex", gap: 0 }}>
+          {(["1m", "3m", "6m", "1y"] as const).map((p) => {
+            const mapped = PERIOD_MAP[p];
+            const active = period === mapped;
+            return (
+              <button key={p} onClick={() => setPeriod(mapped)} style={{
+                padding: "5px 12px", border: "none", borderRight: "1px solid var(--color-rule-2)",
+                background: active ? "var(--color-ink)" : "transparent",
+                color: active ? "var(--color-paper)" : "var(--color-ink-3)",
+                fontSize: 11, fontFamily: "var(--font-mono)", cursor: "pointer", fontWeight: active ? 700 : 400,
+              }}>
+                {p.toUpperCase()}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ padding: 24 }}>
           <StockChart history={history} period={period} />
         </div>
+      </div>
 
-        {/* Fundamentals */}
-        <div className="mb-8">
+      {/* FUNDAMENTALS + POSITION */}
+      <div style={{ display: "grid", gridTemplateColumns: holding ? "1fr 1fr" : "1fr", gap: 0, border: "1px solid var(--color-ink)" }}>
+        <div style={{ padding: 24, borderRight: holding ? "1px solid var(--color-ink)" : "none" }}>
+          <div className="kicker" style={{ marginBottom: 12 }}>Fundamentals</div>
           <StockFundamentals quote={quote} />
         </div>
-
-        {/* Position */}
         {holding && (
-          <div className="mb-8">
+          <div style={{ padding: 24 }}>
+            <div className="kicker" style={{ marginBottom: 12 }}>Your position</div>
             <StockPosition holding={holding} />
           </div>
         )}
       </div>
+
       {addPositionOpen && (
         <QuickAddModal
           onClose={() => setAddPositionOpen(false)}
