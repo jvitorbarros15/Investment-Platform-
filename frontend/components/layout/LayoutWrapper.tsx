@@ -3,8 +3,8 @@
 import { useAuthStore } from "@/lib/auth-store";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Sidebar } from "./Sidebar";
-import { Topbar } from "./Topbar";
+import { Masthead } from "./Masthead";
+import { NavBar } from "./NavBar";
 
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
@@ -23,10 +23,10 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
 
   if (!initialized || !token) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#0c0b08" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "var(--color-paper)" }}>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 24, fontFamily: "var(--font-display)", color: "#f5f1e8", marginBottom: 16 }}>MERIDIAN</div>
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "rgba(245,241,232,0.4)", animation: "fadeIn 1s" }}>Loading…</div>
+          <div style={{ fontSize: 32, fontFamily: "var(--font-display)", fontWeight: 800, color: "var(--color-ink)", marginBottom: 12 }}>MERIDIAN</div>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--color-ink-3)", letterSpacing: "0.16em", textTransform: "uppercase" }}>Loading…</div>
         </div>
       </div>
     );
@@ -34,13 +34,11 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app-shell">
-      <Sidebar />
-      <div className="app-content">
-        <Topbar />
-        <main className="app-main">
-          {children}
-        </main>
-      </div>
+      <Masthead />
+      <NavBar />
+      <main className="app-main">
+        {children}
+      </main>
     </div>
   );
 }
