@@ -50,6 +50,35 @@ export default function Dashboard() {
   const totalDisplay = convertCurrency(totalBrl, "BRL", displayCurrency, summaryRate);
   const gainDisplay = convertCurrency(gainBrl, "BRL", displayCurrency, summaryRate);
 
+  const dailyChangeBrl = holdings.reduce((sum: number, h: Holding) => {
+    const change = h.change_1d ?? 0;
+    return sum + (h.currency === "USD" ? change * liveRate : change);
+  }, 0);
+  const dailyChangePct = totalBrl > 0 ? (dailyChangeBrl / totalBrl) * 100 : 0;
+  const dailyState = dailyChangePct > 0.5 ? "up" : dailyChangePct < -0.5 ? "down" : "steady";
+  const dailyChangeDisplay = convertCurrency(dailyChangeBrl, "BRL", displayCurrency, summaryRate);
+
+  const PHRASES = {
+    up: [
+      ["Portfolio ", "surges", " on broad market gains"],
+      ["Holdings ", "rally", " as risk appetite returns"],
+      ["Portfolio ", "climbs", " across all positions"],
+    ],
+    steady: [
+      ["Portfolio holds ", "steady", " through today's session"],
+      ["Markets drift — holdings ", "stable", ""],
+      ["A quiet day — portfolio ", "intact", ""],
+    ],
+    down: [
+      ["Portfolio ", "retreats", " on mixed signals"],
+      ["Markets weigh on holdings — ", "slipping", ""],
+      ["A rough session — portfolio ", "slips", ""],
+    ],
+  };
+  const STATE_COLOR = { up: "var(--color-terracotta)", steady: "var(--color-ochre)", down: "var(--color-crimson)" };
+  const [phraseIdx] = useState(() => Math.floor(Math.random() * 3));
+  const phrase = PHRASES[dailyState][phraseIdx];
+
   const sortedByReturn = [...holdings].sort((a, b) => b.return_pct - a.return_pct);
   const winners = sortedByReturn.slice(0, 3);
   const losers = [...sortedByReturn].reverse().filter((h) => h.return_pct < 0).slice(0, 3);
@@ -106,19 +135,33 @@ export default function Dashboard() {
         <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 40, paddingBottom: 28, borderBottom: "1px solid var(--color-ink)", marginBottom: 28 }}>
           {/* Left */}
           <div>
-            <div className="kicker" style={{ marginBottom: 14 }}>
-              Total portfolio · {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+            <div className="kicker" style={{ marginBottom: 10 }}>
+              The Standing · {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
             </div>
+            {!isLoading && (
+              <p style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: 22, color: "var(--color-ink)", margin: "0 0 14px", lineHeight: 1.25 }}>
+                {phrase[0]}
+                <span style={{ color: STATE_COLOR[dailyState], fontStyle: "normal" }}>{phrase[1]}</span>
+                {phrase[2]}
+              </p>
+            )}
             <h1 style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "clamp(32px, 5vw, 96px)", lineHeight: 0.9, letterSpacing: "-0.03em", color: "var(--color-ink)", margin: "0 0 18px" }}>
               <span style={{ fontSize: "0.45em", opacity: 0.5 }}>{displayCurrency === "BRL" ? "R$" : "$"}</span>
               {isLoading ? "—" : <AnimatedNumber value={totalDisplay} fmt={(v) => v.toLocaleString(displayCurrency === "BRL" ? "pt-BR" : "en-US", { maximumFractionDigits: 0 })} />}
             </h1>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", fontFamily: "var(--font-mono)", fontSize: 13 }}>
               <span style={{ padding: "5px 10px", background: gainBrl >= 0 ? "var(--color-teal)" : "var(--color-crimson)", color: "var(--color-paper)", fontWeight: 500 }}>
-                {gainDisplay >= 0 ? "▲" : "▼"} {formatCurrency(Math.abs(gainDisplay), displayCurrency)}
+                {gainDisplay >= 0 ? "▲" : "▼"} {formatCurrency(Math.abs(gainDisplay), displayCurrency)} · {summary?.total_return_pct?.toFixed(2)}%
               </span>
               <span style={{ color: "var(--color-ink-4)" }}>·</span>
-              <span style={{ color: "var(--color-ink-3)" }}>all-time return</span>
+              <span style={{ color: "var(--color-ink-3)" }}>all-time</span>
+              <span style={{ color: "var(--color-ink-4)" }}>/</span>
+              {!isLoading && (
+                <span style={{ padding: "5px 10px", background: dailyChangeBrl >= 0 ? "var(--color-teal)" : "var(--color-crimson)", color: "var(--color-paper)", fontWeight: 500 }}>
+                  {dailyChangeBrl >= 0 ? "▲" : "▼"} {formatCurrency(Math.abs(dailyChangeDisplay), displayCurrency)} ({dailyChangePct >= 0 ? "+" : ""}{dailyChangePct.toFixed(2)}%)
+                </span>
+              )}
+              <span style={{ color: "var(--color-ink-3)" }}>today</span>
             </div>
           </div>
           {/* Right: stats */}
