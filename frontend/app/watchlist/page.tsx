@@ -6,8 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 import { getWatchlist } from "@/lib/api";
 import { Reveal } from "@/components/ui/reveal";
 import { Sparkline } from "@/components/ui/sparkline";
-import { ClassChip } from "@/components/ui/class-chip";
-import { ScoreBadge } from "@/components/ui/score-badge";
 import type { WatchlistStatus, WatchlistItem } from "@/lib/types";
 
 const STATUS_FILTERS: { value: WatchlistStatus | "ALL"; label: string }[] = [
@@ -19,11 +17,11 @@ const STATUS_FILTERS: { value: WatchlistStatus | "ALL"; label: string }[] = [
 ];
 
 const STATUS_COLORS: Record<WatchlistStatus, string> = {
-  STRONG_CANDIDATE: "#c9f76f",
-  WAITING_PRICE: "#f0c674",
-  STUDYING: "#9ec5fe",
-  AVOID: "#e07b6c",
-  BOUGHT: "#7dd3a8",
+  STRONG_CANDIDATE: "var(--color-terracotta)",
+  WAITING_PRICE: "var(--color-ochre)",
+  STUDYING: "var(--color-teal)",
+  AVOID: "var(--color-ink-3)",
+  BOUGHT: "var(--color-teal)",
 };
 
 const STATUS_LABELS: Record<WatchlistStatus, string> = {
@@ -58,22 +56,13 @@ export default function WatchlistPage() {
     return watchlist.filter((w: WatchlistItem) => w.status === filter);
   }, [watchlist, filter]);
 
-  const PANEL = {
-    background: "#14130f",
-    border: "1px solid rgba(255,255,255,0.07)",
-    borderRadius: 14,
-    padding: 24,
-  };
-
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
       {/* HEADER */}
       <Reveal>
-        <div>
-          <div style={{ marginBottom: 8, color: "#8892a4", fontSize: 12, fontWeight: 500, letterSpacing: "0.05em" }}>
-            Watchlist · {watchlist.length} candidates
-          </div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 36, lineHeight: 1.2, letterSpacing: "-0.02em", color: "#f5f1e8", margin: 0 }}>
+        <div style={{ paddingBottom: 20, borderBottom: "1px solid var(--color-ink)", marginBottom: 24 }}>
+          <div className="kicker" style={{ marginBottom: 8 }}>Watchlist · {watchlist.length} candidates</div>
+          <h1 style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: "clamp(30px, 4vw, 48px)", lineHeight: 0.9, color: "var(--color-ink)", margin: 0, letterSpacing: "-0.03em" }}>
             What you&apos;re studying
           </h1>
         </div>
@@ -81,163 +70,105 @@ export default function WatchlistPage() {
 
       {/* FILTER TABS */}
       <Reveal delay={50}>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: "1px solid var(--color-ink)" }}>
           {STATUS_FILTERS.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setFilter(f.value)}
-              style={{
-                padding: "8px 12px",
-                borderRadius: 6,
-                border: filter === f.value ? "1px solid rgba(201, 247, 111, 0.3)" : "1px solid rgba(255,255,255,0.1)",
-                background: filter === f.value ? "rgba(201, 247, 111, 0.1)" : "rgba(0,0,0,0.2)",
-                color: filter === f.value ? "#c9f76f" : "#8892a4",
-                fontSize: 13,
-                fontWeight: "500",
-                cursor: "pointer",
-                transition: "all 0.2s",
-                fontFamily: "JetBrains Mono, monospace",
-              }}
-            >
+            <button key={f.value} onClick={() => setFilter(f.value)} style={{
+              padding: "10px 16px", border: "none", borderRight: "1px solid var(--color-rule-2)",
+              background: filter === f.value ? "var(--color-ink)" : "transparent",
+              color: filter === f.value ? "var(--color-paper)" : "var(--color-ink-3)",
+              fontSize: 13, fontWeight: filter === f.value ? 700 : 500, cursor: "pointer",
+              fontFamily: "var(--font-mono)",
+            }}>
               {f.label}
             </button>
           ))}
         </div>
       </Reveal>
 
-      {/* CARD GRID */}
+      {/* LIST */}
       <Reveal delay={100}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(min(320px, 100%), 1fr))",
-            gap: 16,
-          }}
-        >
-          {isLoading ? (
-            <div style={{ color: "#8892a4" }}>Loading...</div>
-          ) : filtered.length === 0 ? (
-            <div style={{ color: "#8892a4" }}>No watchlist items</div>
-          ) : (
-            filtered.map((w: WatchlistItem, i: number) => {
+        {isLoading ? (
+          <div style={{ color: "var(--color-ink-3)", fontFamily: "var(--font-mono)", padding: 24 }}>Loading...</div>
+        ) : filtered.length === 0 ? (
+          <div style={{ color: "var(--color-ink-3)", fontFamily: "var(--font-mono)", padding: 24 }}>No watchlist items</div>
+        ) : (
+          <div style={{ border: "1px solid var(--color-ink)" }}>
+            {filtered.map((w: WatchlistItem, i: number) => {
               const series = genSparkData(w.ticker.charCodeAt(1), 60);
               const currentPrice = w.current_price || 0;
               const targetPrice = w.target_price || currentPrice;
               const distance = targetPrice > 0 ? ((currentPrice - targetPrice) / targetPrice) * 100 : 0;
               const above = currentPrice > targetPrice;
-              const statusColor = STATUS_COLORS[w.status] || "#9ec5fe";
-              const progress = Math.max(0, Math.min(100, 100 - Math.abs(distance) * 6));
+              const statusColor = STATUS_COLORS[w.status] || "var(--color-ink-3)";
+              const minP = Math.min(currentPrice, targetPrice) * 0.95;
+              const maxP = Math.max(currentPrice, targetPrice) * 1.05;
+              const pctAlongTrack = maxP > minP ? ((currentPrice - minP) / (maxP - minP)) * 100 : 50;
 
               return (
-                <Reveal key={w.id} delay={i * 60}>
-                  <div
-                    onClick={() => router.push(`/assets/${encodeURIComponent(w.ticker)}`)}
-                    style={{
-                      ...PANEL,
-                      padding: 20,
-                      cursor: "pointer",
-                      transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                      display: "flex",
-                      flexDirection: "column",
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLElement).style.transform = "translateY(-3px)";
-                      (e.currentTarget as HTMLElement).style.boxShadow = "0 12px 24px rgba(0,0,0,0.3)";
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
-                      (e.currentTarget as HTMLElement).style.boxShadow = "none";
-                    }}
-                  >
-                    {/* HEADER */}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-                      <div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                          <span style={{ fontSize: 16, fontWeight: 600, fontFamily: "JetBrains Mono, monospace", color: "#f5f1e8" }}>
-                            {w.ticker}
-                          </span>
-                          {w.asset_class && <ClassChip assetClass={w.asset_class} />}
-                        </div>
-                        <div style={{ fontSize: 13, color: "#8892a4" }}>{w.name || "Unknown"}</div>
-                      </div>
-                      {w.score && <ScoreBadge score={Math.round(w.score)} />}
-                    </div>
+                <div key={w.id} onClick={() => router.push(`/assets/${encodeURIComponent(w.ticker)}`)}
+                  style={{
+                    borderBottom: i < filtered.length - 1 ? "1px solid var(--color-rule-2)" : "none",
+                    padding: "18px 24px", cursor: "pointer", display: "grid",
+                    gridTemplateColumns: "160px 1fr auto auto auto",
+                    gap: 24, alignItems: "center",
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--color-paper-2)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
 
-                    {/* SPARKLINE */}
-                    <div style={{ marginBottom: 16, overflow: "hidden", borderRadius: 8 }}>
-                      <Sparkline data={series} width={280} height={48} color={statusColor} strokeWidth={1.6} fill={true} />
-                    </div>
+                  {/* TICKER + NAME */}
+                  <div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 14, fontWeight: 700, color: "var(--color-ink)" }}>{w.ticker}</div>
+                    <div style={{ fontSize: 12, color: "var(--color-ink-3)", marginTop: 2 }}>{w.name || "Unknown"}</div>
+                    <span style={{
+                      display: "inline-block", marginTop: 6, padding: "2px 8px",
+                      background: statusColor, color: "var(--color-paper)",
+                      fontSize: 9, fontFamily: "var(--font-mono)", letterSpacing: "0.12em",
+                      textTransform: "uppercase",
+                    }}>
+                      {STATUS_LABELS[w.status]}
+                    </span>
+                  </div>
 
-                    {/* PRICES */}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 8 }}>
-                      <div>
-                        <div style={{ fontSize: 11, color: "#8892a4", fontWeight: 600, letterSpacing: "0.05em", marginBottom: 4 }}>
-                          Current
-                        </div>
-                        <div style={{ fontSize: 18, fontWeight: 600, color: "#f5f1e8", fontFamily: "JetBrains Mono, monospace" }}>
-                          ${currentPrice.toFixed(2)}
-                        </div>
-                      </div>
-                      <div style={{ fontSize: 18, fontWeight: 600, color: above ? "#e89b7c" : "#7dd3a8", textAlign: "center" }}>
-                        {above ? "↑" : "↓"}
-                        <div style={{ fontSize: 13 }}>{Math.abs(distance).toFixed(1)}%</div>
-                      </div>
-                      <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: 11, color: "#8892a4", fontWeight: 600, letterSpacing: "0.05em", marginBottom: 4 }}>
-                          Target
-                        </div>
-                        <div style={{ fontSize: 18, fontWeight: 600, color: "#f5f1e8", fontFamily: "JetBrains Mono, monospace" }}>
-                          ${targetPrice.toFixed(2)}
-                        </div>
-                      </div>
+                  {/* TARGET PRICE TRACK */}
+                  <div>
+                    <div style={{ position: "relative", height: 1, background: "var(--color-ink)", margin: "12px 0" }}>
+                      <span style={{ position: "absolute", left: 0, top: -3, width: 7, height: 7, background: "var(--color-ink)", borderRadius: "50%" }} />
+                      <span style={{ position: "absolute", right: 0, top: -3, width: 7, height: 7, background: "var(--color-ink)", borderRadius: "50%" }} />
+                      <span style={{
+                        position: "absolute", top: -5, left: `${pctAlongTrack}%`, width: 11, height: 11,
+                        background: "var(--color-terracotta)", borderRadius: "50%", border: "2px solid var(--color-paper)",
+                        transform: "translateX(-50%)",
+                      }} />
                     </div>
-
-                    {/* PROGRESS BAR */}
-                    <div style={{ marginBottom: 12 }}>
-                      <div
-                        style={{
-                          width: "100%",
-                          height: 6,
-                          borderRadius: 3,
-                          background: "rgba(0,0,0,0.4)",
-                          overflow: "hidden",
-                          marginBottom: 8,
-                        }}
-                      >
-                        <div
-                          style={{
-                            height: "100%",
-                            width: `${progress}%`,
-                            background: statusColor,
-                            transition: "width 0.3s",
-                          }}
-                        />
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#8892a4" }}>
-                        <span style={{ color: statusColor, fontWeight: 600 }}>{STATUS_LABELS[w.status]}</span>
-                        <span>30D {w.change_30d ? formatPct(w.change_30d) : "—"}</span>
-                      </div>
-                    </div>
-
-                    {/* REASON */}
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: "#8892a4",
-                        fontStyle: "italic",
-                        marginTop: "auto",
-                        paddingTop: 12,
-                        borderTop: "1px solid rgba(255,255,255,0.07)",
-                      }}
-                    >
-                      &quot;{w.reason || "No reason provided"}&quot;
+                    <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--color-ink-3)" }}>
+                      <span>${minP.toFixed(2)}</span>
+                      <span>${maxP.toFixed(2)}</span>
                     </div>
                   </div>
-                </Reveal>
+
+                  {/* CURRENT + TARGET */}
+                  <div style={{ textAlign: "right" }}>
+                    <div className="kicker" style={{ marginBottom: 4 }}>Current</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 700, color: "var(--color-ink)" }}>${currentPrice.toFixed(2)}</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: above ? "var(--color-crimson)" : "var(--color-teal)", marginTop: 2 }}>
+                      {above ? "▲" : "▼"} {Math.abs(distance).toFixed(1)}% from target
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div className="kicker" style={{ marginBottom: 4 }}>Target</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 16, fontWeight: 700, color: "var(--color-ink-2)" }}>${targetPrice.toFixed(2)}</div>
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--color-ink-3)", marginTop: 2 }}>
+                      30D {w.change_30d ? formatPct(w.change_30d) : "—"}
+                    </div>
+                  </div>
+
+                  {/* SPARKLINE */}
+                  <Sparkline data={series} width={90} height={32} color={above ? "#99291b" : "#0d6b65"} strokeWidth={1.5} fill={false} />
+                </div>
               );
-            })
-          )}
-        </div>
+            })}
+          </div>
+        )}
       </Reveal>
     </div>
   );
