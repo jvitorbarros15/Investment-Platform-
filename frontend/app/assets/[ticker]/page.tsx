@@ -48,7 +48,7 @@ export default function AssetDetailPage() {
         ]);
         setQuote(quoteData);
         setHistory(historyData);
-        const found = holdings.find((h) => h.ticker.toUpperCase() === ticker.toUpperCase());
+        const found = holdings.find((h: Holding) => h.ticker.toUpperCase() === ticker.toUpperCase());
         setHolding(found || null);
         const wItem = watchlist.find((w: { ticker: string; id: string }) => w.ticker.toUpperCase() === ticker.toUpperCase());
         setWatchlistItemId(wItem?.id ?? null);
