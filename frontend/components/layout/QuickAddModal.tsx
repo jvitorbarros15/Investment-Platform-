@@ -14,26 +14,26 @@ interface QuickAddModalProps {
 
 const OVERLAY: CSSProperties = {
   position: "fixed", inset: 0, zIndex: 200,
-  background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
+  background: "rgba(22,32,45,0.5)", backdropFilter: "blur(2px)",
   display: "flex", alignItems: "center", justifyContent: "center",
 };
 
 const PANEL: CSSProperties = {
-  background: "#14130f", border: "1px solid rgba(255,255,255,0.1)",
-  borderRadius: 14, padding: 28, width: "100%", maxWidth: 420,
-  boxShadow: "0 24px 60px rgba(0,0,0,0.5)",
+  background: "var(--color-paper)", border: "1px solid var(--color-ink)",
+  borderRadius: 0, padding: 28, width: "100%", maxWidth: 420,
+  boxShadow: "6px 6px 0 var(--color-ink)",
 };
 
 const INPUT: CSSProperties = {
-  width: "100%", height: 38, borderRadius: 7,
-  border: "1px solid rgba(255,255,255,0.1)", background: "#1a1814",
-  color: "#f5f1e8", padding: "0 10px",
-  fontFamily: "JetBrains Mono, monospace", fontSize: 13, outline: "none",
+  width: "100%", height: 38, borderRadius: 0,
+  border: "1px solid var(--color-ink)", background: "var(--color-paper-2)",
+  color: "var(--color-ink)", padding: "0 10px",
+  fontFamily: "var(--font-mono)", fontSize: 13, outline: "none",
   boxSizing: "border-box",
 };
 
 const LABEL: CSSProperties = { display: "grid", gap: 6 };
-const LABEL_TEXT: CSSProperties = { color: "#8892a4", fontSize: 11, fontWeight: 600, letterSpacing: "0.05em" };
+const LABEL_TEXT: CSSProperties = { color: "var(--color-ink-3)", fontSize: 10, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", fontFamily: "var(--font-mono)" };
 
 export function QuickAddModal({ onClose, initialTicker = "", initialPrice, initialCurrency = "BRL" }: QuickAddModalProps) {
   const queryClient = useQueryClient();
@@ -74,19 +74,19 @@ export function QuickAddModal({ onClose, initialTicker = "", initialPrice, initi
     <div style={OVERLAY} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={PANEL}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <span style={{ fontFamily: "var(--font-display)", fontSize: 18, color: "#f5f1e8" }}>Add Transaction</span>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "rgba(245,241,232,0.4)", cursor: "pointer", fontSize: 20, lineHeight: 1, padding: "0 4px" }}>×</button>
+          <span style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 700, color: "var(--color-ink)" }}>Add Transaction</span>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--color-ink-3)", cursor: "pointer", fontSize: 20, lineHeight: 1, padding: "0 4px" }}>×</button>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
           {/* BUY / SELL toggle */}
-          <div style={{ display: "flex", background: "#1a1814", borderRadius: 7, border: "1px solid rgba(255,255,255,0.1)", overflow: "hidden" }}>
+          <div style={{ display: "flex", border: "1px solid var(--color-ink)", overflow: "hidden" }}>
             {(["BUY", "SELL"] as const).map((t) => (
               <button key={t} type="button" onClick={() => setType(t)} style={{
                 flex: 1, height: 36, border: "none", cursor: "pointer", fontSize: 12,
                 fontFamily: "var(--font-mono)", letterSpacing: "0.08em", fontWeight: 600,
-                background: type === t ? (t === "BUY" ? "#7dd3a8" : "#f87171") : "transparent",
-                color: type === t ? "#0c0b08" : "rgba(245,241,232,0.4)",
+                background: type === t ? (t === "BUY" ? "var(--color-teal)" : "var(--color-crimson)") : "transparent",
+                color: type === t ? "var(--color-paper)" : "var(--color-ink-3)",
               }}>{t}</button>
             ))}
           </div>
@@ -112,25 +112,25 @@ export function QuickAddModal({ onClose, initialTicker = "", initialPrice, initi
           </div>
 
           {/* Currency toggle */}
-          <div style={{ display: "flex", background: "#1a1814", borderRadius: 7, border: "1px solid rgba(255,255,255,0.1)", overflow: "hidden" }}>
+          <div style={{ display: "flex", border: "1px solid var(--color-ink)", overflow: "hidden" }}>
             {(["BRL", "USD"] as const).map((c) => (
               <button key={c} type="button" onClick={() => setCurrency(c)} style={{
                 flex: 1, height: 32, border: "none", cursor: "pointer", fontSize: 11,
                 fontFamily: "var(--font-mono)", fontWeight: 600,
-                background: currency === c ? "#c9f76f" : "transparent",
-                color: currency === c ? "#0c0b08" : "rgba(245,241,232,0.4)",
+                background: currency === c ? "var(--color-ink)" : "transparent",
+                color: currency === c ? "var(--color-paper)" : "var(--color-ink-3)",
               }}>{c}</button>
             ))}
           </div>
 
-          {error && <span style={{ color: "#f87171", fontSize: 12 }}>{error}</span>}
-          {addTx.isError && <span style={{ color: "#f87171", fontSize: 12 }}>Failed to save. Try again.</span>}
+          {error && <span style={{ color: "var(--color-crimson)", fontSize: 12 }}>{error}</span>}
+          {addTx.isError && <span style={{ color: "var(--color-crimson)", fontSize: 12 }}>Failed to save. Try again.</span>}
 
           <button type="submit" disabled={addTx.isPending} style={{
-            height: 40, borderRadius: 7, border: "none", cursor: "pointer",
-            background: "#c9f76f", color: "#0c0b08",
+            height: 40, border: "1px solid var(--color-terracotta-2)", cursor: "pointer",
+            background: "#cc5230", color: "var(--color-paper)",
             fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: 13,
-            opacity: addTx.isPending ? 0.6 : 1,
+            opacity: addTx.isPending ? 0.6 : 1, borderRadius: 0,
           }}>
             {addTx.isPending ? "Saving…" : `Confirm ${type}`}
           </button>
