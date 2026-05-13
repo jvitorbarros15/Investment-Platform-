@@ -18,6 +18,8 @@ interface HistoryPoint {
   date: string;
   close: number;
   volume?: number;
+  ma50?: number;
+  ma200?: number;
 }
 
 interface StockChartProps {
@@ -131,7 +133,7 @@ export function StockChart({ history, period }: StockChartProps) {
               border: "1px solid #333",
               borderRadius: "8px",
             }}
-            formatter={(value: number) => [value.toFixed(2), ""]}
+            formatter={(value) => [typeof value === "number" ? value.toFixed(2) : value, ""]}
           />
 
           {showVolume && (

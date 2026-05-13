@@ -53,14 +53,14 @@ export function StockPosition({ holding }: StockPositionProps) {
         <div>
           <div className="text-neutral-500 text-xs mb-1">Quantity</div>
           <div className="text-white font-medium text-lg">
-            {holding.quantity.toFixed(2)}
+            {(holding.quantity ?? 0).toFixed(2)}
           </div>
         </div>
 
         <div>
           <div className="text-neutral-500 text-xs mb-1">Avg Cost</div>
           <div className="text-white font-medium text-lg">
-            {formatCurrency(holding.average_cost)}
+            {formatCurrency(holding.average_cost ?? 0)}
           </div>
         </div>
 
